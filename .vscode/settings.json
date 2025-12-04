@@ -1,0 +1,30 @@
+{
+    "cmake.buildBeforeRun": true,
+    "cmake.sourceDirectory": "${workspaceFolder}",
+    "files.associations": {
+        "stdlib.h": "c",
+        "tusb.h": "c",
+        "board_api.h": "c",
+        "cmath": "c",
+        "*.tcc": "c",
+        "cinttypes": "c",
+        "cstdlib": "c",
+        "adc.h": "c",
+        "time.h": "c",
+        "stdio.h": "c",
+        "adc_handler.h": "c",
+        "tud_handler.h": "c",
+        "gpio.h": "c",
+        "button.h": "c",
+        "ws2812_handler.h": "c",
+        "ws2812.pio.h": "c",
+        "timer.h": "c",
+        "ioexpander.h": "c",
+        "main_irq_callback.h": "c",
+        "rotarty_switch.h": "c",
+        "ioexpander_handler.h": "c",
+        "midi_handler.h": "c",
+        "ws2812.h": "c"
+    },
+    "cortex-debug.openocdPath": "C:\\VSARM\\sdk\\pico\\openocd\\src\\openocd.exe"
+}

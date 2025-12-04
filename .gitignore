@@ -1,0 +1,7 @@
+build/
+generated
+
+# pcb 
+_pcb/main_pcb/main_pcb/fp-info-cache
+*.zip
+*.lck
