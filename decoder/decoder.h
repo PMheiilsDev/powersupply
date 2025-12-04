@@ -1,51 +1,26 @@
 
 #include <inttypes.h>
 
-enum
-{
-    SEG_A = (1u << 0),
-    SEG_B = (1u << 1),
-    SEG_C = (1u << 2),
-    SEG_D = (1u << 3),
-    SEG_E = (1u << 4),
-    SEG_F = (1u << 5),
-    SEG_G = (1u << 6),
-    SEG_DP = (1u << 7),
-};
-
-
-uint8_t segment_mapping[] = 
-{
-    [0] = SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,
-    [1] = SEG_B | SEG_C,
-    [2] = SEG_A | SEG_B | SEG_G | SEG_E | SEG_D,
-    [3] = SEG_A | SEG_B | SEG_G | SEG_C | SEG_D,
-    [4] = SEG_F | SEG_G | SEG_B | SEG_C,
-    [5] = SEG_A | SEG_F | SEG_G | SEG_C | SEG_D,
-    [6] = SEG_A | SEG_F | SEG_G | SEG_E | SEG_C | SEG_D,
-    [7] = SEG_A | SEG_F | SEG_E | SEG_D | SEG_C | SEG_G,
-    [8] = SEG_A | SEG_B | SEG_C,
-    [9] = SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F | SEG_G,
-};
-
-enum ROW
+typedef enum ROW
 {
     VOLTAGE = 0,
     CURRENT,
     POWER,
     ROW_LEN
-};
+} 
+row_t;
 
-enum DIGIT 
+typedef enum DIGIT 
 {
     DIGIT_0 = 0,
     DIGIT_1,
     DIGIT_2,
     DIGIT_3,
     DIGIT_LEN
-};
+} 
+digit_t;
 
-enum SEGMENT
+typedef enum SEGMENT
 {
     SEGMENT_A = 0,
     SEGMENT_B,
@@ -56,7 +31,8 @@ enum SEGMENT
     SEGMENT_G,
     SEGMENT_DP,
     SEGMENT_LEN
-};
+} 
+segment_t;
 
 typedef struct 
 {
@@ -212,3 +188,55 @@ bit_position_t data_mapping[ROW_LEN][DIGIT_LEN][SEGMENT_LEN] =
     },
 };
 
+typedef enum BCD_TO_SEGMENT
+{
+    SEG_A = (1u << SEGMENT_A),
+    SEG_B = (1u << SEGMENT_B),
+    SEG_C = (1u << SEGMENT_C),
+    SEG_D = (1u << SEGMENT_D),
+    SEG_E = (1u << SEGMENT_E),
+    SEG_F = (1u << SEGMENT_F),
+    SEG_G = (1u << SEGMENT_G),
+    SEG_DP = (1u << SEGMENT_DP),
+}
+bcd_to_segment_t;
+
+
+const uint8_t segment_mapping[] = 
+{
+    [0] = SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,
+    [1] = SEG_B | SEG_C,
+    [2] = SEG_A | SEG_B | SEG_G | SEG_E | SEG_D,
+    [3] = SEG_A | SEG_B | SEG_G | SEG_C | SEG_D,
+    [4] = SEG_F | SEG_G | SEG_B | SEG_C,
+    [5] = SEG_A | SEG_F | SEG_G | SEG_C | SEG_D,
+    [6] = SEG_A | SEG_F | SEG_G | SEG_E | SEG_C | SEG_D,
+    [7] = SEG_A | SEG_F | SEG_E | SEG_D | SEG_C | SEG_G,
+    [8] = SEG_A | SEG_B | SEG_C,
+    [9] = SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F | SEG_G,
+};
+
+
+uint8_t get_digit_of_segment(uint8_t *data, row_t row, digit_t digit )
+{
+    // get all the bits of this segment to a byte
+    uint8_t segment_bits = 0;
+    for ( segment_t seg = SEGMENT_A; seg < SEGMENT_LEN; seg++ )
+    {
+        bit_position_t bit_pos = data_mapping[row][digit][seg];
+        uint8_t bit_value = (data[bit_pos.byte] >> bit_pos.bit) & 0x01;
+        if ( bit_value )
+        {
+            segment_bits |= (1u << seg);
+        }
+    }
+
+    for ( uint8_t i = 0; i < sizeof(segment_mapping); i++ )
+    {
+        if ( segment_bits == segment_mapping[i] )
+        {
+            return i;
+        }
+    }
+    return 0xFF; // Return an invalid digit if no match is found
+}

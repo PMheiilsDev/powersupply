@@ -3,6 +3,7 @@
 #include "spi_capture.h"
 #include "decoder.h"
 
+spi_frame_t frame;
 
 int main()
 {
@@ -19,48 +20,30 @@ int main()
     gpio_pull_up(PIN_CLK);
     gpio_pull_up(PIN_CS);
 
-    spi_frame_t frame;
 
     uint32_t cs_count = 0;
     uint32_t clk_count = 0;
     uint32_t dio_count = 0;
 
-    // while(1)
-    // {
-        
-    //     if ( gpio_get(PIN_CS) == 0 )
-    //     {
-    //         cs_count++;
-    //     }
-    //     if ( gpio_get(PIN_CLK) == 0 )
-    //     {
-    //         clk_count++;
-    //     }
-    //     if ( gpio_get(PIN_DIO) == 0 )
-    //     {
-    //         dio_count++;
-    //     }
-    //     if ( gpio_get(PIN_CS) == 1 )
-    //     {
-    //         printf("CS low count: %lu\n", cs_count);
-    //         printf("CLK low count: %lu\n", clk_count);
-    //         printf("DIO low count: %lu\n", dio_count);
-    //     }
-    // }
 
     while (1)
     {
         spi_capture_blocking(&frame);
 
         // print frame
-        if ( frame.length > 5 )
+        if ( (frame.length == 17 && frame.data[0] == 0xC0) )
         {
-            printf("Frame (%lu bytes): ", frame.length);
-            for (uint32_t i = 0; i < frame.length; i++)
-            {
-                printf("%02X ", frame.data[i]);
-            }
-            printf("\n");
+            // printf("Frame (%lu bytes): ", frame.length);
+            // for (uint32_t i = 0; i < frame.length; i++)
+            // {
+            //     printf("%02X ", frame.data[i]);
+            // }
+            // printf("\n");
+
+            // decode voltage digit 2 as test 
+            uint8_t digit = get_digit_of_segment((frame.data + 1), VOLTAGE, DIGIT_2);
+            printf("Voltage Digit 2: %u\n", digit);
+
         }
     }
 }

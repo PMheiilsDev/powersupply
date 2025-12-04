@@ -35,7 +35,7 @@ void /*__not_in_flash_func*/(spi_capture_blocking)(spi_frame_t *frame)
         // Faster rising-edge detection
         if ( ((~last) & now) & CLK_MASK )
         {
-            byte = (byte << 1) | ((now & DIO_MASK) ? 1 : 0);
+            byte = (byte >> 1) | (((now & DIO_MASK) ? 1 : 0) << 7);
             bitcount++;
 
             if (bitcount == 8)
