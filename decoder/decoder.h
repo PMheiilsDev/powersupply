@@ -233,7 +233,7 @@ uint8_t get_digit_of_segment(uint8_t *data, row_t row, digit_t digit )
 
     for ( uint8_t i = 0; i < sizeof(segment_mapping); i++ )
     {
-        if ( segment_bits == segment_mapping[i] )
+        if ( (segment_bits & (uint8_t)(~SEG_DP)) == segment_mapping[i] )
         {
             return i;
         }
