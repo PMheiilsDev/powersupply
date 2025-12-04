@@ -211,9 +211,9 @@ const uint8_t segment_mapping[] =
     [4] = SEG_F | SEG_G | SEG_B | SEG_C,
     [5] = SEG_A | SEG_F | SEG_G | SEG_C | SEG_D,
     [6] = SEG_A | SEG_F | SEG_G | SEG_E | SEG_C | SEG_D,
-    [7] = SEG_A | SEG_F | SEG_E | SEG_D | SEG_C | SEG_G,
-    [8] = SEG_A | SEG_B | SEG_C,
-    [9] = SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F | SEG_G,
+    [7] = SEG_A | SEG_B | SEG_C,
+    [8] = SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F | SEG_G,
+    [9] = SEG_A | SEG_F | SEG_G | SEG_B | SEG_C | SEG_D,
 };
 
 
