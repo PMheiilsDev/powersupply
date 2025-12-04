@@ -41,8 +41,21 @@ int main()
             // printf("\n");
 
             // decode voltage digit 2 as test 
-            uint8_t digit = get_digit_of_segment((frame.data + 1), VOLTAGE, DIGIT_2);
-            printf("Voltage Digit 2: %u\n", digit);
+            printf("Decoding Voltage ROW: ");
+            uint8_t data[4];
+            for (uint8_t i = 0; i < 4; i++) 
+            {
+                data[i] = get_digit_of_segment((frame.data + 1), VOLTAGE, (digit_t)i);
+                if (data[i] == 0xFF)
+                {
+                    printf("X"); 
+                }
+                else
+                {
+                    printf("%d", data[i]);
+                }
+            }
+            printf("\n");
 
         }
     }
