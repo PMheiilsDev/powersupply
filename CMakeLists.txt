@@ -42,6 +42,7 @@ target_link_libraries(spi_listner PUBLIC
         hardware_pio
         hardware_i2c
         hardware_spi
+        pico_multicore
 )
 
 get_target_property(OUT spi_listner LINK_LIBRARIES)

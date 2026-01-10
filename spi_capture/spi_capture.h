@@ -16,7 +16,7 @@ typedef struct
 
 typedef struct
 {
-    uint8_t voltage;
+    uint16_t voltage;
     uint8_t current;
     uint8_t power;
 

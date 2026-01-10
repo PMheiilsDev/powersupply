@@ -63,39 +63,38 @@ void /*__not_in_flash_func*/(spi_capture_blocking)(spi_frame_t *frame)
     frame->length = len;
 }
 
-spi_frame_t frame;
 
 void update_screendata_callback()
 {
+    spi_frame_t frame;
     spi_capture_blocking(&frame);
 
     if ( (frame.length == 17 && frame.data[0] == 0xC0) ) 
     {
-        __breakpoint();
-    }
 
-    // get voltage 
-    // todo this still only works if the decimal point is at the expected place
+        // get voltage 
+        // todo this still only works if the decimal point is at the expected place
 
-    uint16_t voltage_mV = 0;
+        uint16_t voltage_cV = 0;
 
-    for (uint8_t digit = 0; digit < DIGIT_LEN; digit++) 
-    {
-        uint8_t data = get_digit_of_segment((frame.data + 1), VOLTAGE, (digit_t)digit);
-        if (data == 0xFF)
+        for (uint8_t digit = 0; digit < DIGIT_LEN; digit++) 
         {
-            screendata.editing_row = VOLTAGE;
-            screendata.editing_digit = (digit_t)digit; 
-            break;
+            uint8_t data = get_digit_of_segment((frame.data + 1), VOLTAGE, (digit_t)digit);
+            if (data == 0xFF)
+            {
+                screendata.editing_row = VOLTAGE;
+                screendata.editing_digit = (digit_t)digit; 
+                return;
+            }
+            else
+            {
+                voltage_cV += data * pow((uint16_t)10, (uint16_t)(3-digit) );
+            }
+
         }
-        else
-        {
-            voltage_mV += data * pow(10, (uint8_t)(4-digit) );
-        }
+
+        screendata.voltage = voltage_cV;
 
     }
-
-    screendata.voltage = voltage_mV;
-
 }
 
