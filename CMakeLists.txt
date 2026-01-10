@@ -51,6 +51,7 @@ message(STATUS ${OUT})
 target_sources(spi_listner PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/spi_listner.c
         ${CMAKE_CURRENT_SOURCE_DIR}/spi_capture/spi_capture.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/decoder/decoder.c
         )
 
 set_source_files_properties(spi_capture.c PROPERTIES COMPILE_FLAGS "-O3")

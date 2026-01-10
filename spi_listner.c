@@ -3,7 +3,6 @@
 #include "spi_capture.h"
 #include "decoder.h"
 
-spi_frame_t frame;
 
 int main()
 {
@@ -28,35 +27,11 @@ int main()
 
     while (1)
     {
-        spi_capture_blocking(&frame);
 
-        // print frame
-        if ( (frame.length == 17 && frame.data[0] == 0xC0) )
-        {
-            // printf("Frame (%lu bytes): ", frame.length);
-            // for (uint32_t i = 0; i < frame.length; i++)
-            // {
-            //     printf("%02X ", frame.data[i]);
-            // }
-            // printf("\n");
+        update_screendata_callback();
+        
+        printf("U = %d mV\n", screendata.voltage);
 
-            // decode voltage digit 2 as test 
-            printf("Decoding Voltage ROW: ");
-            uint8_t data[4];
-            for (uint8_t i = 0; i < 4; i++) 
-            {
-                data[i] = get_digit_of_segment((frame.data + 1), VOLTAGE, (digit_t)i);
-                if (data[i] == 0xFF)
-                {
-                    printf("X"); 
-                }
-                else
-                {
-                    printf("%d", data[i]);
-                }
-            }
-            printf("\n");
-
-        }
     }
+
 }

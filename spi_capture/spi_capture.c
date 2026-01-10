@@ -2,6 +2,8 @@
 #include "hardware/sync.h"
 #include "spi_capture.h"
 
+#include <math.h>
+
 #define CS_MASK   (1u << PIN_CS)
 #define CLK_MASK  (1u << PIN_CLK)
 #define DIO_MASK  (1u << PIN_DIO)
@@ -10,6 +12,7 @@ static inline uint32_t gpio_fast() {
     return sio_hw->gpio_in;
 }
 
+screendata_t screendata;
 
 void /*__not_in_flash_func*/(spi_capture_blocking)(spi_frame_t *frame)
 {
@@ -59,3 +62,40 @@ void /*__not_in_flash_func*/(spi_capture_blocking)(spi_frame_t *frame)
 
     frame->length = len;
 }
+
+spi_frame_t frame;
+
+void update_screendata_callback()
+{
+    spi_capture_blocking(&frame);
+
+    if ( (frame.length == 17 && frame.data[0] == 0xC0) ) 
+    {
+        __breakpoint();
+    }
+
+    // get voltage 
+    // todo this still only works if the decimal point is at the expected place
+
+    uint16_t voltage_mV = 0;
+
+    for (uint8_t digit = 0; digit < DIGIT_LEN; digit++) 
+    {
+        uint8_t data = get_digit_of_segment((frame.data + 1), VOLTAGE, (digit_t)digit);
+        if (data == 0xFF)
+        {
+            screendata.editing_row = VOLTAGE;
+            screendata.editing_digit = (digit_t)digit; 
+            break;
+        }
+        else
+        {
+            voltage_mV += data * pow(10, (uint8_t)(4-digit) );
+        }
+
+    }
+
+    screendata.voltage = voltage_mV;
+
+}
+
