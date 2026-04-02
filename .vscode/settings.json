@@ -26,6 +26,6 @@
         "midi_handler.h": "c",
         "ws2812.h": "c"
     },
-    "cortex-debug.openocdPath": "C:\\VSARM\\sdk\\pico\\openocd\\src\\openocd.exe",
+    "cortex-debug.openocdPath": "openocd",
     "editor.snippetSuggestions": "bottom"
 }
