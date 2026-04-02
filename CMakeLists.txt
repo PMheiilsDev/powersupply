@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.17)
-set(PICO_SDK_PATH "C:/RP2040/pico-sdk")
+# set(PICO_SDK_PATH "C:/RP2040/pico-sdk")
 #include(${CMAKE_CURRENT_SOURCE_DIR}/../../../hw/bsp/family_support.cmake)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 
