@@ -1,0 +1,22 @@
+{
+  "name": "pico-dev",
+  "build": {
+    "dockerfile": "../Dockerfile"
+  },
+  // "workspaceFolder": "/workspace",
+  "runArgs": [
+    "--privileged",
+    "--device=/dev/bus/usb:/dev/bus/usb",
+    // "-v ${workspaceFolder}:/workspace"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools",
+        "marus25.cortex-debug",
+        "twxs.cmake"
+      ]
+    }
+  }
+}
