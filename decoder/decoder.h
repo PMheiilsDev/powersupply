@@ -1,6 +1,7 @@
 #pragma once
 
 #include <inttypes.h>
+// #include "spi_capture.h"
 
 typedef enum ROW
 {
@@ -67,7 +68,7 @@ extern const uint8_t segment_mapping[];
 /// @param data 
 /// @param row 
 /// @param digit 
-/// @return 
+/// @return the number 0..9 of the digit in the row 
 uint8_t get_digit_of_segment(uint8_t *data, row_t row, digit_t digit );
 
 

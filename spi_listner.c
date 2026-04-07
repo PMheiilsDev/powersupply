@@ -9,8 +9,17 @@ spi_frame_t frame;
 void lambda_capture_callback()
 {
     while(1)
-    {    
-        update_screendata_callback();
+    {   
+        // spi_frame_t frame;
+        spi_capture_blocking(&frame);
+
+        if ( (frame.length == 17 && frame.data[0] == 0xC0) ) 
+        {
+
+            get_value((frame.data+1), &(screendata.rows[VOLTAGE]), VOLTAGE);
+        }
+
+        // update_screendata_callback();
     }
 }
 
@@ -39,9 +48,9 @@ int main()
 
     while (1)
     {
-        printf("U = %04d cV\t", screendata.voltage);
+        printf("U = %04de%dV\n", screendata.rows[VOLTAGE].fac, screendata.rows[VOLTAGE].exp);
         
-        printf("position editing: row=%d digit=%d\n", screendata.editing_row, screendata.editing_digit);
+        // printf("position editing: row=%d digit=%d\n", screendata.editing_row, screendata.editing_digit);
 
         sleep_ms(50);
     }

@@ -75,7 +75,7 @@ void update_screendata_callback()
         // get voltage 
         // todo this still only works if the decimal point is at the expected place
 
-        uint16_t voltage_cV = 0;
+        uint16_t voltage_fac = 0;
 
         for (uint8_t digit = 0; digit < DIGIT_LEN; digit++) 
         {
@@ -88,12 +88,14 @@ void update_screendata_callback()
             }
             else
             {
-                voltage_cV += data * pow((uint16_t)10, (uint16_t)(3-digit) );
+                voltage_fac += data * pow((uint16_t)10, (uint16_t)(3-digit) );
             }
 
         }
 
-        screendata.voltage = voltage_cV;
+        screendata.rows[VOLTAGE].fac = voltage_fac;
+
+
 
     }
 }
