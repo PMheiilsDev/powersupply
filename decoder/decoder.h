@@ -61,6 +61,15 @@ typedef enum BCD_TO_SEGMENT
 bcd_to_segment_t;
 
 
+typedef struct
+{
+    // all values are given in std SI units (V,A,W) 
+    // where value = fac * 10**exp;  
+    uint16_t fac;
+    int8_t exp;
+} value_t;
+
+
 extern const uint8_t segment_mapping[];
 
 
@@ -70,5 +79,8 @@ extern const uint8_t segment_mapping[];
 /// @param digit 
 /// @return the number 0..9 of the digit in the row 
 uint8_t get_digit_of_segment(uint8_t *data, row_t row, digit_t digit );
+
+
+uint8_t get_value(uint8_t*data, value_t* value_ptr, row_t row);
 
 

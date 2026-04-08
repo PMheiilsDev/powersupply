@@ -16,14 +16,6 @@ typedef struct
 
 typedef struct
 {
-    // all values are given in std SI units (V,A,W) 
-    // where value = fac * 10**exp;  
-    uint16_t fac;
-    int8_t exp;
-} value_t;
-
-typedef struct
-{
     value_t rows[ROW_LEN];
 
     // uint8_t current;
@@ -41,7 +33,4 @@ void spi_capture_blocking(spi_frame_t *frame);
 
 /// @brief read spi data and update screendata
 void update_screendata_callback();
-
-
-uint8_t get_value(uint8_t*data, value_t* value_ptr, row_t row);
 
