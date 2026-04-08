@@ -2,6 +2,7 @@
 #include "decoder.h"
 #include "spi_capture.h"
 #include <math.h>
+#include <stdbool.h>
 
 
 bit_position_t data_mapping[ROW_LEN][DIGIT_LEN][SEGMENT_LEN] =
@@ -191,7 +192,7 @@ uint8_t get_digit_of_segment(uint8_t *data, row_t row, digit_t digit )
 }
 
 
-uint8_t get_value(uint8_t*data, value_t* value_ptr, row_t row)
+bool get_value(uint8_t*data, value_t* value_ptr, row_t row)
 {
     uint16_t voltage_fac = 0;
     int8_t decimal_point_pos = 0;
@@ -201,10 +202,12 @@ uint8_t get_value(uint8_t*data, value_t* value_ptr, row_t row)
     {
         uint8_t digit_value = get_digit_of_segment(data, row, (digit_t)digit);
         
-        if (digit_value != 0xFF)
+        if (digit_value == 0xFF)
         {
-            voltage_fac += digit_value * pow((uint16_t)10, (uint16_t)((DIGIT_LEN-1)-digit) );
+            return false;
         }
+
+        voltage_fac += digit_value * pow((uint16_t)10, (uint16_t)((DIGIT_LEN-1)-digit) );
 
         // get decimal seperator 
         bit_position_t bit_pos = data_mapping[row][digit][SEGMENT_DP];
@@ -221,6 +224,7 @@ uint8_t get_value(uint8_t*data, value_t* value_ptr, row_t row)
 
     screendata.rows[row].exp = decimal_point_pos+(1-DIGIT_LEN);
     
+    return true;
 }
 
 
