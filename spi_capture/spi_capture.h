@@ -14,19 +14,6 @@ typedef struct
     uint32_t length;
 } spi_frame_t;
 
-typedef struct
-{
-    value_t rows[ROW_LEN];
-
-    // uint8_t current;
-    // uint8_t power;
-
-    row_t editing_row;
-    digit_t editing_digit;
-}
-screendata_t;
-
-extern screendata_t screendata;
 
 // declaration must EXACTLY match definition
 void spi_capture_blocking(spi_frame_t *frame);

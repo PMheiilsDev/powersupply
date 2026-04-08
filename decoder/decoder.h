@@ -72,6 +72,20 @@ typedef struct
 
 extern const uint8_t segment_mapping[];
 
+typedef struct
+{
+    value_t rows[ROW_LEN];
+
+    // uint8_t current;
+    // uint8_t power;
+
+    row_t editing_row;
+    digit_t editing_digit;
+}
+screendata_t;
+
+extern screendata_t screendata;
+
 
 /// @brief 
 /// @param data 

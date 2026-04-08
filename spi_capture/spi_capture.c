@@ -8,11 +8,11 @@
 #define CLK_MASK  (1u << PIN_CLK)
 #define DIO_MASK  (1u << PIN_DIO)
 
-static inline uint32_t gpio_fast() {
+static inline uint32_t gpio_fast() 
+{
     return sio_hw->gpio_in;
 }
 
-screendata_t screendata;
 
 void /*__not_in_flash_func*/(spi_capture_blocking)(spi_frame_t *frame)
 {
