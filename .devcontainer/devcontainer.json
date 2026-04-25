@@ -3,14 +3,25 @@
   "build": {
     "dockerfile": "../Dockerfile"
   },
-  // "workspaceFolder": "/workspace",
   "runArgs": [
     "--privileged",
-    "--device=/dev/bus/usb:/dev/bus/usb",
-    // "-v ${workspaceFolder}:/workspace"
+    "--device=/dev/bus/usb:/dev/bus/usb"
   ],
+  "mounts": [
+    // Using a named volume for the server speeds up extension loading significantly
+    "source=pico-server-vol,target=/root/.vscode-server,type=volume"
+  ],
+  // 1. Skip the expensive search for shell environment variables
+  "userEnvProbe": "interactiveShell",
+  // 2. Prevent VS Code from trying to 'chown' the workspace on every start
+  "updateRemoteUserUID": false,
   "customizations": {
     "vscode": {
+      "settings": {
+        // 3. Disable GPG/Git syncing if you don't explicitly need it in the container
+        // This removes the 'mkdir .gnupg' and 'git config' steps in your logs
+        "dev.containers.copyGitConfig": false
+      },
       "extensions": [
         "ms-vscode.cpptools",
         "ms-vscode.cmake-tools",
