@@ -3,16 +3,21 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
-#define PIN_VOLTAGE_A
-#define PIN_VOLTAGE_B
-#define PIN_VOLTAGE_BUTTON
+#define PIN_VOLTAGE_A 0
+#define PIN_VOLTAGE_B 0 
+#define PIN_VOLTAGE_BUTTON 0
 
-#define PIN_CURRENT_A
-#define PIN_CURRENT_B
-#define PIN_CURRENT_BUTTON
+#define PIN_CURRENT_A 0 
+#define PIN_CURRENT_B 0 
+#define PIN_CURRENT_BUTTON 0
 
+#define ROT_DELAY_US 100
 
+// this must atleast be longer than the delay between two button checks of the power supply (10ms) 
+// this is bad as it takes long maybe try to sync it to the cs pin ? (wait for cs to go high for more than a few ms)
+#define BUTTON_DELAY_US 100  
 
+/// @brief initilise controller 
 void controller_init();
 
 

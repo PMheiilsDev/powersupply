@@ -53,6 +53,7 @@ target_sources(spi_listner PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/spi_listner.c
         ${CMAKE_CURRENT_SOURCE_DIR}/spi_capture/spi_capture.c
         ${CMAKE_CURRENT_SOURCE_DIR}/decoder/decoder.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/controller/controller.c
         )
 
 set_source_files_properties(spi_capture.c PROPERTIES COMPILE_FLAGS "-O3")
@@ -62,6 +63,7 @@ target_include_directories(spi_listner PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         ${CMAKE_CURRENT_SOURCE_DIR}/spi_capture
         ${CMAKE_CURRENT_SOURCE_DIR}/decoder
+        ${CMAKE_CURRENT_SOURCE_DIR}/controller
         )
 
 
