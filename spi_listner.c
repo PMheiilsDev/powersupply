@@ -4,45 +4,12 @@
 #include "decoder.h"
 #include "pico/multicore.h"
 
-spi_frame_t frame;
-
-void lambda_capture_callback()
-{
-    while(1)
-    {   
-        // spi_frame_t frame;
-        spi_capture_blocking(&frame);
-
-        if ( (frame.length == 17 && frame.data[0] == 0xC0) ) 
-        {
-
-            get_value((frame.data+1), &(screendata.rows[VOLTAGE]), VOLTAGE);
-        }
-
-        // update_screendata_callback();
-    }
-}
 
 
 int main()
 {
     stdio_init_all();
 
-    // configure pins as input
-    gpio_init(PIN_DIO);
-    gpio_set_dir(PIN_DIO, GPIO_IN);
-    gpio_init(PIN_CLK);
-    gpio_set_dir(PIN_CLK, GPIO_IN);
-    gpio_init(PIN_CS);
-    gpio_set_dir(PIN_CS, GPIO_IN);
-    gpio_pull_up(PIN_DIO);
-    gpio_pull_up(PIN_CLK);
-    gpio_pull_up(PIN_CS);
-
-
-    uint32_t cs_count = 0;
-    uint32_t clk_count = 0;
-    uint32_t dio_count = 0;
 
     multicore_launch_core1(lambda_capture_callback);    
 

@@ -13,6 +13,8 @@ static inline uint32_t gpio_fast()
     return sio_hw->gpio_in;
 }
 
+spi_frame_t frame;
+
 
 void /*__not_in_flash_func*/(spi_capture_blocking)(spi_frame_t *frame)
 {
@@ -97,6 +99,39 @@ void update_screendata_callback()
 
 
 
+    }
+}
+
+void spi_capture_init()
+{
+    // configure pins as input
+    gpio_init(PIN_DIO);
+    gpio_set_dir(PIN_DIO, GPIO_IN);
+    gpio_init(PIN_CLK);
+    gpio_set_dir(PIN_CLK, GPIO_IN);
+    gpio_init(PIN_CS);
+    gpio_set_dir(PIN_CS, GPIO_IN);
+    gpio_pull_up(PIN_DIO);
+    gpio_pull_up(PIN_CLK);
+    gpio_pull_up(PIN_CS);
+
+}
+
+
+void lambda_capture_callback()
+{
+    while(1)
+    {   
+        // spi_frame_t frame;
+        spi_capture_blocking(&frame);
+
+        if ( (frame.length == 17 && frame.data[0] == 0xC0) ) 
+        {
+
+            get_value((frame.data+1), &(screendata.rows[VOLTAGE]), VOLTAGE);
+        }
+
+        // update_screendata_callback();
     }
 }
 
