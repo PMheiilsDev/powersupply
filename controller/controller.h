@@ -3,13 +3,15 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
-#define PIN_VOLTAGE_A 0
-#define PIN_VOLTAGE_B 0 
-#define PIN_VOLTAGE_BUTTON 0
+#define PIN_VOLTAGE_A 27
+#define PIN_VOLTAGE_B 26 
+#define PIN_VOLTAGE_BUTTON 18
 
-#define PIN_CURRENT_A 0 
-#define PIN_CURRENT_B 0 
-#define PIN_CURRENT_BUTTON 0
+#define PIN_CURRENT_A 20 
+#define PIN_CURRENT_B 19 
+#define PIN_CURRENT_BUTTON 17
+
+#define PIN_OUTPUT_BUTTON 16
 
 #define ROT_DELAY_US 100
 

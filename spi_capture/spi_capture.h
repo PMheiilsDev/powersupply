@@ -2,9 +2,9 @@
 #include <stdint.h>
 #include "decoder.h"
 
-#define PIN_DIO  16
-#define PIN_CLK  19
-#define PIN_CS   17
+#define PIN_DIO  28
+#define PIN_CLK  29
+#define PIN_CS   23
 
 #define CAPTURE_BUF_SIZE 256
 
