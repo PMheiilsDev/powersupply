@@ -7,7 +7,8 @@ typedef enum ROW
     VOLTAGE = 0,
     CURRENT,
     POWER,
-    ROW_LEN
+    ROW_LEN,
+    UNKNOWN_ROW = 0xFF
 } 
 row_t;
 
@@ -17,7 +18,8 @@ typedef enum DIGIT
     DIGIT_1,        // left middle
     DIGIT_2,        // right middle
     DIGIT_3,        // rightmost
-    DIGIT_LEN
+    DIGIT_LEN,
+    UNKNOWN_DIGIT = 0xFF
 } 
 digit_t;
 

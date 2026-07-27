@@ -164,7 +164,17 @@ const uint8_t segment_mapping[] =
     [9] = SEG_A | SEG_F | SEG_G | SEG_B | SEG_C | SEG_D,
 };
 
-screendata_t screendata;
+screendata_t screendata = 
+{
+    .rows = 
+    {
+        [VOLTAGE] = { .fac = 0, .exp = 0 },
+        [CURRENT] = { .fac = 0, .exp = 0 },
+        [POWER]   = { .fac = 0, .exp = 0 },
+    },
+    .editing_row = UNKNOWN_ROW,
+    .editing_digit = UNKNOWN_DIGIT,
+};
 
 
 uint8_t get_digit_of_segment(uint8_t *data, row_t row, digit_t digit )
