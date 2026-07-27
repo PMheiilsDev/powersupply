@@ -1,6 +1,7 @@
 {
     "cmake.buildBeforeRun": true,
     "cmake.sourceDirectory": "${workspaceFolder}",
+    "cmake.generator": "Unix Makefiles",
     "files.associations": {
         "stdlib.h": "c",
         "tusb.h": "c",
