@@ -191,6 +191,7 @@ uint8_t get_digit_of_segment(uint8_t *data, row_t row, digit_t digit )
     return 0xFF; // Return an invalid digit if no match is found
 }
 
+extern volatile int wait_for_spi_capture_sem;
 
 bool get_value(uint8_t*data, value_t* value_ptr, row_t row)
 {
@@ -204,6 +205,9 @@ bool get_value(uint8_t*data, value_t* value_ptr, row_t row)
         
         if (digit_value == 0xFF)
         {
+            screendata.editing_row = row;
+            screendata.editing_digit = (digit_t)digit;
+            wait_for_spi_capture_sem = 0;
             return false;
         }
 

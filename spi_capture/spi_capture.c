@@ -15,6 +15,7 @@ static inline uint32_t gpio_fast()
 
 spi_frame_t frame;
 
+volatile int wait_for_spi_capture_sem = 0;
 
 void /*__not_in_flash_func*/(spi_capture_blocking)(spi_frame_t *frame)
 {
@@ -135,6 +136,15 @@ void lambda_capture_callback()
         }
 
         // update_screendata_callback();
+    }
+}
+
+void wait_for_spi_capture()
+{
+    wait_for_spi_capture_sem = 1;
+    while(wait_for_spi_capture_sem)
+    {
+        tight_loop_contents();
     }
 }
 

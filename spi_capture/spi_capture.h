@@ -19,6 +19,8 @@ extern spi_frame_t frame;
 // declaration must EXACTLY match definition
 void spi_capture_blocking(spi_frame_t *frame);
 
+void wait_for_spi_capture();
+
 /// @brief read spi data and update screendata
 void update_screendata_callback();
 
