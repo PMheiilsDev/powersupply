@@ -16,9 +16,12 @@
 
 #define ROT_DELAY_US (2000-750)
 
-// this must atleast be longer than the delay between two button checks of the power supply (10ms) 
-// this is bad as it takes long maybe try to sync it to the cs pin ? (wait for cs to go high for more than a few ms)
-#define BUTTON_DELAY_US 100  
+// a button must atleast be pressed for 5 button scans (50ms) to be detected 
+// to be sure that 5 scans are in the on time it must be atleast 6*10ms 
+// todo: this could be reduced by syncing it with the cs signal minimum is still 50ms 
+    // could be made to be in core1 
+        // if cs == low => press button count to 5, stop */ 
+#define BUTTON_DELAY_US 61*1000  
 
 /// @brief initilise controller 
 void controller_init();
