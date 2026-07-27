@@ -19,11 +19,17 @@ int main()
 
     while (1)
     {
-        printf("U = %04de%dV\n", screendata.rows[VOLTAGE].fac, screendata.rows[VOLTAGE].exp);
-        
-        // printf("position editing: row=%d digit=%d\n", screendata.editing_row, screendata.editing_digit);
+        printf("U = %04de%dV\t", screendata.rows[VOLTAGE].fac, screendata.rows[VOLTAGE].exp);
+        printf("I = %04de%dA\t", screendata.rows[CURRENT].fac, screendata.rows[CURRENT].exp);
+        printf("P = %04de%dW\n", screendata.rows[POWER].fac, screendata.rows[POWER].exp);
 
+        // printf("position editing: row=%d digit=%d\n", screendata.editing_row, screendata.editing_digit);
+        
         sleep_ms(50);
+        sleep_ms(3*1000);
+
+        rotate_digit_voltage(true, 100);
+        continue;
         
         // reach target
         int distance = target - screendata.rows[VOLTAGE].fac;
