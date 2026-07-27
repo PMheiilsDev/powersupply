@@ -5,6 +5,19 @@
 #include "pico/multicore.h"
 #include "controller.h"
 
+static uint32_t state = 0x12345678;
+uint32_t my_ctr = 1;
+
+uint32_t random32(void)
+{
+    uint32_t x = state;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    state = x;
+    return x;
+}
+
 volatile int target = 0;
 
 
@@ -29,7 +42,7 @@ int main()
 
         // printf("position editing: row=%d digit=%d\n", screendata.editing_row, screendata.editing_digit);
         
-        sleep_ms(2*1000);
+        sleep_ms(3*1000);
         
         // rotate_digit_voltage(true, 100);
         // gpio_put(25, 1);
@@ -40,6 +53,13 @@ int main()
         
         // reach target
         int distance = target - screendata.rows[VOLTAGE].fac;
+
+        if (distance == 0)
+        {
+            target = random32() % 100 +100;
+            my_ctr--;
+        }
+        else my_ctr++;
 
         if (distance != 0)
         {
