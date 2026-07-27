@@ -13,7 +13,7 @@
 
 #define PIN_OUTPUT_BUTTON 16
 
-#define ROT_DELAY_US 100
+#define ROT_DELAY_US (2000-750)
 
 // this must atleast be longer than the delay between two button checks of the power supply (10ms) 
 // this is bad as it takes long maybe try to sync it to the cs pin ? (wait for cs to go high for more than a few ms)
