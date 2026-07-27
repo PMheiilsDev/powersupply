@@ -129,6 +129,9 @@ void lambda_capture_callback()
         {
 
             get_value((frame.data+1), &(screendata.rows[VOLTAGE]), VOLTAGE);
+            get_value((frame.data+1), &(screendata.rows[CURRENT]), CURRENT);
+            get_value((frame.data+1), &(screendata.rows[POWER]), POWER);
+
         }
 
         // update_screendata_callback();
