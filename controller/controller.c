@@ -63,5 +63,24 @@ void change_digit_voltage()
     // sleep_us(BUTTON_DELAY_US);
 }
 
+void move_digit_voltage(digit_t digit)
+{
+    // rotate once to get the editing digit to blink
+    // only if the last 0xFF(empty) has been more than about 2000ms 
+    // maybe not necessary when last read was under 2000ms ago as then its still blinking
+    // and if longer then 2000ms then it resets to 100mV (DIGIT_2) 
+    rotate_digit_voltage_once_hard(false);
+    wait_for_spi_capture();
+
+    uint8_t start = (uint8_t)screendata.editing_digit;
+    uint8_t goal = (uint8_t)digit;
+    // moves = (start - goal + N) % N
+    uint8_t moves = (start - goal + DIGIT_LEN) % DIGIT_LEN;
+    for (int i = 0; i < moves; i++)
+    {
+        change_digit_voltage();
+        sleep_us(BUTTON_DELAY_US);
+    }
+}
 
 

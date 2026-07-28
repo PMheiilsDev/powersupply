@@ -3,6 +3,9 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
+#include "decoder_types.h"
+#include "decoder.h"
+
 #define PIN_VOLTAGE_A 19 
 #define PIN_VOLTAGE_B 20 
 #define PIN_VOLTAGE_BUTTON 17
@@ -41,4 +44,8 @@ void rotate_digit_voltage(bool up, uint16_t n);
 /// @brief change the selection digit of voltage once to the left and track the expected change  
 void change_digit_voltage();
 
+
+/// @brief move the digit to digit by pressing the button, waiting for screen update before doing anything 
+/// @param digit 
+void move_digit_voltage(digit_t digit);
 
