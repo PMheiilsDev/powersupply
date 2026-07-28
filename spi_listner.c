@@ -36,14 +36,14 @@ int main()
 
     while (1)
     {
-        printf("U = %04de%dV\t", screendata.rows[VOLTAGE].fac, screendata.rows[VOLTAGE].exp);
-        printf("I = %04de%dA\t", screendata.rows[CURRENT].fac, screendata.rows[CURRENT].exp);
-        printf("P = %04de%dW\n", screendata.rows[POWER].fac, screendata.rows[POWER].exp);
-        printf("Editing: row=%d digit=%d\n", screendata.editing_row, screendata.editing_digit);
+        // printf("U = %04de%dV\t", screendata.rows[VOLTAGE].fac, screendata.rows[VOLTAGE].exp);
+        // printf("I = %04de%dA\t", screendata.rows[CURRENT].fac, screendata.rows[CURRENT].exp);
+        // printf("P = %04de%dW\n", screendata.rows[POWER].fac, screendata.rows[POWER].exp);
+        // printf("Editing: row=%d digit=%d\n", screendata.editing_row, screendata.editing_digit);
 
         // printf("position editing: row=%d digit=%d\n", screendata.editing_row, screendata.editing_digit);
         
-        sleep_ms(3*1000);
+        sleep_ms(9000); // 8.940< x <8.945, x is the time it takes for the editing digit to reset to DIGIT_2, there is some randomness around x
         
         // rotate_digit_voltage(true, 100);
         // gpio_put(25, 1);
@@ -57,9 +57,10 @@ int main()
 
         if ( screendata.editing_digit == (digit_t)digit )
         {
-            digit = random32() % 100 +100;
+            digit = random32() % DIGIT_LEN;
+            digit = 3;
         }
-
+    
         move_digit_voltage((digit_t)digit);
 
         // if (distance != 0)
@@ -67,7 +68,7 @@ int main()
         //     do
         //     {
         //         change_digit_voltage();
-        //         wait_for_spi_capture();
+                // wait_for_spi_capture();
         //     }
         //     while( (screendata.editing_digit != DIGIT_3) || (screendata.editing_row != VOLTAGE) );
         // }
