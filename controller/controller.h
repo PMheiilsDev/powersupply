@@ -25,7 +25,8 @@
 // todo: this could be reduced by syncing it with the cs signal minimum is still 50ms 
     // could be made to be in core1 
         // if cs == low => press button count to 5, stop */ 
-#define BUTTON_DELAY_US 61*1000  
+#define BUTTON_PRESS_DELAY_US 61*1000  
+#define BUTTON_RELEASE_DELAY_US 11*1000
 
 /// @brief initilise controller 
 void controller_init();

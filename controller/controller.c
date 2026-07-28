@@ -59,9 +59,9 @@ void change_digit_voltage()
 {
     // screendata.editing_digit = (screendata.editing_digit-1+DIGIT_LEN) % DIGIT_LEN;
     gpio_put(PIN_VOLTAGE_BUTTON, 1);
-    sleep_us(BUTTON_DELAY_US);
+    sleep_us(BUTTON_PRESS_DELAY_US);
     gpio_put(PIN_VOLTAGE_BUTTON, 0);
-    // sleep_us(BUTTON_DELAY_US);
+    sleep_us(BUTTON_RELEASE_DELAY_US);
 }
 
 void move_digit_voltage(digit_t digit)
@@ -80,7 +80,6 @@ void move_digit_voltage(digit_t digit)
     for (int i = 0; i < moves; i++)
     {
         change_digit_voltage();
-        sleep_us(BUTTON_DELAY_US);
     }
 }
 
