@@ -19,6 +19,7 @@ uint32_t random32(void)
 }
 
 volatile int target = 0;
+volatile uint8_t digit = 0;
 
 
 int main()
@@ -52,35 +53,35 @@ int main()
         // continue;
         
         // reach target
-        int distance = target - screendata.rows[VOLTAGE].fac;
+        // int distance = target - screendata.rows[VOLTAGE].fac;
 
-        if (distance == 0)
+        if ( screendata.editing_digit == (digit_t)digit )
         {
-            target = random32() % 100 +100;
-            my_ctr--;
+            digit = random32() % 100 +100;
         }
-        else my_ctr++;
 
-        if (distance != 0)
-        {
-            do
-            {
-                change_digit_voltage();
-                wait_for_spi_capture();
-            }
-            while( (screendata.editing_digit != DIGIT_3) || (screendata.editing_row != VOLTAGE) );
-        }
-        // sleep_ms(0);
-        if (distance < 0)
-        {
-            printf("moving down by %d", -distance );
-            rotate_digit_voltage(false, -distance);
-        }
-        else if ( distance > 0)
-        {
-            printf("moving up by %d", distance );
-            rotate_digit_voltage(true, distance);
-        }
+        move_digit_voltage((digit_t)digit);
+
+        // if (distance != 0)
+        // {
+        //     do
+        //     {
+        //         change_digit_voltage();
+        //         wait_for_spi_capture();
+        //     }
+        //     while( (screendata.editing_digit != DIGIT_3) || (screendata.editing_row != VOLTAGE) );
+        // }
+        // // sleep_ms(0);
+        // if (distance < 0)
+        // {
+        //     printf("moving down by %d", -distance );
+        //     rotate_digit_voltage(false, -distance);
+        // }
+        // else if ( distance > 0)
+        // {
+        //     printf("moving up by %d", distance );
+        //     rotate_digit_voltage(true, distance);
+        // }
     }
 
 }
