@@ -5,6 +5,7 @@
 
 #include "decoder_types.h"
 #include "decoder.h"
+#include "spi_capture.h"
 
 #define PIN_VOLTAGE_A 19 
 #define PIN_VOLTAGE_B 20 
