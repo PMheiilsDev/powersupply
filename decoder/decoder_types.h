@@ -79,7 +79,7 @@ typedef struct
     // uint8_t power;
 
     row_t editing_row;
-    digit_t editing_digit;
+    digit_t editing_digit; // todo add editing_digit for voltage and current as they are independent and information persists when V->I->V 
 }
 screendata_t;
 
