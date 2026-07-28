@@ -57,6 +57,7 @@ void rotate_digit_voltage(bool up, uint16_t n)
 
 void change_digit_voltage()
 {
+    // screendata.editing_digit = (screendata.editing_digit-1+DIGIT_LEN) % DIGIT_LEN;
     gpio_put(PIN_VOLTAGE_BUTTON, 1);
     sleep_us(BUTTON_DELAY_US);
     gpio_put(PIN_VOLTAGE_BUTTON, 0);
