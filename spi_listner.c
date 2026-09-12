@@ -4,6 +4,8 @@
 #include "decoder.h"
 #include "pico/multicore.h"
 #include "controller.h"
+#include "scpi_control.h"
+
 
 static uint32_t state = 0x12345678;
 uint32_t my_ctr = 1;
@@ -21,7 +23,7 @@ uint32_t random32(void)
 volatile int target = 0;
 volatile uint8_t digit = 0;
 
-volatile bool wait_for_debugger = true;
+volatile bool wait_for_debugger = false;
 
 int main()
 {
@@ -36,6 +38,7 @@ int main()
     // gpio_set_dir(25, GPIO_OUT);
 
     stdio_init_all();
+    scpi_control_init();
 
     spi_capture_init();
     controller_init();
@@ -44,53 +47,8 @@ int main()
 
     while (1)
     {
-        // printf("U = %04de%dV\t", screendata.rows[VOLTAGE].fac, screendata.rows[VOLTAGE].exp);
-        // printf("I = %04de%dA\t", screendata.rows[CURRENT].fac, screendata.rows[CURRENT].exp);
-        // printf("P = %04de%dW\n", screendata.rows[POWER].fac, screendata.rows[POWER].exp);
-        // printf("Editing: row=%d digit=%d\n", screendata.editing_row, screendata.editing_digit);
-
-        // printf("position editing: row=%d digit=%d\n", screendata.editing_row, screendata.editing_digit);
-        
-        sleep_ms(9000); // 8.940< x <8.945, x is the time it takes for the editing digit to reset to DIGIT_2, there is some randomness around x
-        
-        // rotate_digit_voltage(true, 100);
-        // gpio_put(25, 1);
-        // // sleep_ms(250);
-        // change_digit_voltage();
-        // gpio_put(25, 0);
-        // continue;
-        
-        // reach target
-        // int distance = target - screendata.rows[VOLTAGE].fac;
-
-        if ( screendata.editing_digit == (digit_t)digit )
-        {
-            digit = random32() % DIGIT_LEN;
-            digit = 3;
-        }
-    
-        move_digit_voltage((digit_t)digit);
-
-        // if (distance != 0)
-        // {
-        //     do
-        //     {
-        //         change_digit_voltage();
-                // wait_for_spi_capture();
-        //     }
-        //     while( (screendata.editing_digit != DIGIT_3) || (screendata.editing_row != VOLTAGE) );
-        // }
-        // // sleep_ms(0);
-        // if (distance < 0)
-        // {
-        //     printf("moving down by %d", -distance );
-        //     rotate_digit_voltage(false, -distance);
-        // }
-        // else if ( distance > 0)
-        // {
-        //     printf("moving up by %d", distance );
-        //     rotate_digit_voltage(true, distance);
-        // }
+        scpi_control_process();
+        sleep_ms(1);
     }
 
 }

@@ -27,9 +27,9 @@
                 "/usr/local/share/openocd/scripts"
             ],
 
-            "postLaunchCommands": [
-                "source debug.gdb"
-            ],
+            // "postLaunchCommands": [
+            //     "source debug.gdb"
+            // ],
             // "postDebugTask": "set wait_for_debugger = 0",
 
             "liveWatch": {

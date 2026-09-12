@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdbool.h>
 
+bit_position_t output_on_bit_pos = NUM_TO_BIT_POS_T(36);
 
 bit_position_t data_mapping[ROW_LEN][DIGIT_LEN][SEGMENT_LEN] =
 {
@@ -172,6 +173,7 @@ screendata_t screendata =
         [CURRENT] = { .fac = 0, .exp = 0 },
         [POWER]   = { .fac = 0, .exp = 0 },
     },
+    .output_on = false,
     .editing_row = UNKNOWN_ROW,
     .editing_digit = UNKNOWN_DIGIT,
 };

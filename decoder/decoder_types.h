@@ -1,6 +1,7 @@
 #pragma once
 
 #include <inttypes.h>
+#include <stdbool.h>
 
 typedef enum ROW
 {
@@ -74,6 +75,8 @@ value_t;
 typedef struct
 {
     value_t rows[ROW_LEN];
+
+    bool output_on;
 
     // uint8_t current;
     // uint8_t power;

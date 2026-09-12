@@ -7,6 +7,7 @@
 #define NUM_TO_BIT_POS_T(n)  { .byte = (n)/8, .bit = (n)%8 }
 
 extern bit_position_t data_mapping[ROW_LEN][DIGIT_LEN][SEGMENT_LEN];
+extern bit_position_t output_on_bit_pos;
 
 
 extern const uint8_t segment_mapping[];

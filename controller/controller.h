@@ -51,3 +51,9 @@ void change_digit_voltage();
 /// @param digit 
 void move_digit_voltage(digit_t digit);
 
+bool controller_set_voltage(double voltage);
+
+void controller_set_output(bool enabled);
+void controller_toggle_output(void);
+bool controller_get_output(void);
+

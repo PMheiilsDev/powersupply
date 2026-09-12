@@ -129,6 +129,9 @@ void lambda_capture_callback()
 
         if ( (frame.length == 17 && frame.data[0] == 0xC0) ) 
         {
+            uint8_t output_byte = frame.data[1 + output_on_bit_pos.byte];
+            screendata.output_on =
+                (output_byte >> output_on_bit_pos.bit) & 0x01u;
 
             get_value((frame.data+1), &(screendata.rows[VOLTAGE]), VOLTAGE);
             get_value((frame.data+1), &(screendata.rows[CURRENT]), CURRENT);
