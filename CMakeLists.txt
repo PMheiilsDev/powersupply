@@ -18,12 +18,32 @@ project(spi_listner C CXX ASM)
 #  return()
 #endif()
 
+add_library(scpi_parser STATIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/scpi-parser/libscpi/src/error.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/scpi-parser/libscpi/src/fifo.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/scpi-parser/libscpi/src/ieee488.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/scpi-parser/libscpi/src/minimal.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/scpi-parser/libscpi/src/parser.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/scpi-parser/libscpi/src/units.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/scpi-parser/libscpi/src/utils.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/scpi-parser/libscpi/src/lexer.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/scpi-parser/libscpi/src/expression.c
+)
+
+target_include_directories(scpi_parser
+        PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/scpi-parser/libscpi/inc
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/scpi-parser/libscpi/src
+)
+
 add_executable(spi_listner)
 
 #target_compile_definitions( spi_listner PRIVATE CFG_TUSB_MCU=OPT_MCU_RP2040 )
 
 target_link_libraries( spi_listner PUBLIC
         pico_stdlib
+        scpi_parser
 )
 
 
@@ -54,6 +74,7 @@ target_sources(spi_listner PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/spi_capture/spi_capture.c
         ${CMAKE_CURRENT_SOURCE_DIR}/decoder/decoder.c
         ${CMAKE_CURRENT_SOURCE_DIR}/controller/controller.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/scpi_control.c
         )
 
 set_source_files_properties(spi_capture.c PROPERTIES COMPILE_FLAGS "-O3")
@@ -64,6 +85,7 @@ target_include_directories(spi_listner PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/spi_capture
         ${CMAKE_CURRENT_SOURCE_DIR}/decoder
         ${CMAKE_CURRENT_SOURCE_DIR}/controller
+        ${CMAKE_CURRENT_SOURCE_DIR}
         )
 
 
