@@ -89,12 +89,16 @@ void move_digit_voltage(digit_t digit)
 
 bool controller_set_voltage(double voltage)
 {
-    if (voltage < 0.0 || voltage > 9999.0)
+    int8_t exponent = screendata.rows[VOLTAGE].exp;
+    double scale = pow(10.0, (double)exponent);
+    double target_fac_value = voltage / scale;
+
+    if (!isfinite(voltage) || target_fac_value < 0.0 || target_fac_value > 9999.0)
     {
         return false;
     }
 
-    uint16_t target = (uint16_t)lround(voltage);
+    uint16_t target = (uint16_t)lround(target_fac_value);
     uint16_t current = screendata.rows[VOLTAGE].fac;
 
     bool up = target > current;
