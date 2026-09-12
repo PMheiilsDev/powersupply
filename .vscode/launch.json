@@ -27,10 +27,10 @@
                 "/usr/local/share/openocd/scripts"
             ],
 
-            "postRestartCommands": [
-                "break main",
-                "continue"
+            "postLaunchCommands": [
+                "source debug.gdb"
             ],
+            // "postDebugTask": "set wait_for_debugger = 0",
 
             "liveWatch": {
                 "enabled": true,

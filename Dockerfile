@@ -4,6 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Base dependencies
 RUN apt-get update && apt-get install -y \
+    usbutils \
     cmake gcc-arm-none-eabi libnewlib-arm-none-eabi \
     build-essential git python3 \
     libstdc++-arm-none-eabi-newlib \

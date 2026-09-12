@@ -21,9 +21,17 @@ uint32_t random32(void)
 volatile int target = 0;
 volatile uint8_t digit = 0;
 
+volatile bool wait_for_debugger = true;
 
 int main()
 {
+    sleep_ms(10);
+
+    while(wait_for_debugger)
+    {
+        sleep_ms(100);
+    }
+
     // gpio_init(25);
     // gpio_set_dir(25, GPIO_OUT);
 
