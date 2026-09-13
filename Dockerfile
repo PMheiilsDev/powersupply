@@ -28,6 +28,13 @@ RUN git clone https://github.com/raspberrypi/openocd.git \
 # Set OpenOCD scripts path
 ENV OPENOCD_SCRIPTS=/usr/local/share/openocd/scripts
 
+# Python serial test dependencies
+RUN apt-get update && apt-get install -y \
+    python-is-python3 \
+    python3-pip \
+    python3-serial \
+    && rm -rf /var/lib/apt/lists/*
+
 
 # Pico SDK
 WORKDIR /data

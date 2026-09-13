@@ -1,5 +1,6 @@
 build
 generated
+__pycache__
 
 # pcb 
 _pcb/main_pcb/main_pcb/fp-info-cache
