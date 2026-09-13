@@ -1,4 +1,11 @@
 cmake_minimum_required(VERSION 3.17)
+option(POWERSUPPLY_HOST_TESTS "Build hardware-independent firmware tests" OFF)
+if(POWERSUPPLY_HOST_TESTS)
+        project(powersupply_tests C)
+        enable_testing()
+        add_subdirectory(tests)
+        return()
+endif()
 # set(PICO_SDK_PATH "C:/RP2040/pico-sdk")
 #include(${CMAKE_CURRENT_SOURCE_DIR}/../../../hw/bsp/family_support.cmake)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
@@ -72,12 +79,16 @@ message(STATUS ${OUT})
 target_sources(spi_listner PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/spi_listner.c
         ${CMAKE_CURRENT_SOURCE_DIR}/spi_capture/spi_capture.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/spi_capture/spi_capture_logic.c
         ${CMAKE_CURRENT_SOURCE_DIR}/decoder/decoder.c
         ${CMAKE_CURRENT_SOURCE_DIR}/controller/controller.c
         ${CMAKE_CURRENT_SOURCE_DIR}/scpi_control.c
         )
 
-set_source_files_properties(spi_capture.c PROPERTIES COMPILE_FLAGS "-O3")
+set_source_files_properties(
+        spi_capture/spi_capture.c
+        spi_capture/spi_capture_logic.c
+        PROPERTIES COMPILE_FLAGS "-O3")
 
 # Example include
 target_include_directories(spi_listner PUBLIC

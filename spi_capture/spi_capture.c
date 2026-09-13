@@ -1,154 +1,59 @@
 #include "pico/stdlib.h"
-#include "hardware/sync.h"
+#include "pico/critical_section.h"
 #include "spi_capture.h"
 
-#include <math.h>
+static critical_section_t display_lock;
+static display_snapshot_t published;
+static capture_engine_t engine;
 
-#define CS_MASK   (1u << PIN_CS)
-#define CLK_MASK  (1u << PIN_CLK)
-#define DIO_MASK  (1u << PIN_DIO)
-
-static inline uint32_t gpio_fast() 
+void spi_capture_init(void)
 {
-    return sio_hw->gpio_in;
+    capture_engine_init(&engine);
+    published = engine.display;
+    critical_section_init(&display_lock);
+    const unsigned pins[] = {PIN_DIO, PIN_CLK, PIN_CS};
+    for (unsigned index = 0; index < sizeof(pins) / sizeof(pins[0]); index++)
+    {
+        gpio_init(pins[index]);
+        gpio_set_dir(pins[index], GPIO_IN);
+        gpio_pull_up(pins[index]);
+    }
 }
 
-spi_frame_t frame;
-
-volatile int wait_for_spi_capture_sem = 0;
-
-void /*__not_in_flash_func*/(spi_capture_blocking)(spi_frame_t *frame)
+void spi_capture_snapshot(display_snapshot_t *snapshot)
 {
-    volatile uint8_t *dst = frame->data;
-    uint32_t len = 0;
+    critical_section_enter_blocking(&display_lock);
+    *snapshot = published;
+    critical_section_exit(&display_lock);
+}
 
-    frame->length = 0;
-
-    // Wait CS low
-    while (gpio_fast() & CS_MASK) tight_loop_contents();
-
-    uint8_t byte = 0;
-    uint32_t bitcount = 0;
-
-    uint32_t flags = save_and_disable_interrupts();
-
-    uint32_t last = gpio_fast();
-
-    while (!(gpio_fast() & CS_MASK))
+void lambda_capture_callback(void)
+{
+    while (true)
     {
-        uint32_t now = gpio_fast();
-
-        // Faster rising-edge detection
-        if ( ((~last) & now) & CLK_MASK )
+        uint32_t levels = gpio_get_all();
+        if (capture_engine_sample(&engine, levels, time_us_32()))
         {
-            byte = (byte >> 1) | (((now & DIO_MASK) ? 1 : 0) << 7);
-            bitcount++;
-
-            if (bitcount == 8)
-            {
-                dst[len++] = byte;
-                bitcount = 0;
-                byte = 0;
-            }
+            critical_section_enter_blocking(&display_lock);
+            published = engine.display;
+            critical_section_exit(&display_lock);
         }
-
-        last = now;
     }
+}
 
-    if (bitcount)
+bool spi_capture_wait(uint32_t after_sequence, uint32_t timeout_us,
+                      display_snapshot_t *snapshot)
+{
+    uint32_t started = time_us_32();
+    do
     {
-        byte <<= (8 - bitcount);
-        dst[len++] = byte;
-    }
-
-    restore_interrupts(flags);
-
-    frame->length = len;
-}
-
-
-// void update_screendata_callback()
-// {
-//     spi_frame_t frame;
-//     spi_capture_blocking(&frame);
-
-//     if ( (frame.length == 17 && frame.data[0] == 0xC0) ) 
-//     {
-
-//         // get voltage 
-//         // todo this still only works if the decimal point is at the expected place
-
-//         uint16_t voltage_fac = 0;
-
-//         for (uint8_t digit = 0; digit < DIGIT_LEN; digit++) 
-//         {
-//             uint8_t data = get_digit_of_segment((frame.data + 1), VOLTAGE, (digit_t)digit);
-//             if (data == 0xFF)
-//             {
-//                 screendata.editing_row = VOLTAGE;
-//                 screendata.editing_digit = (digit_t)digit; 
-//                 wait_for_spi_capture_sem = 0;
-//                 return;
-//             }
-//             else
-//             {
-//                 voltage_fac += data * pow((uint16_t)10, (uint16_t)(3-digit) );
-//             }
-
-//         }
-
-//         screendata.rows[VOLTAGE].fac = voltage_fac;
-
-//         wait_for_spi_capture_sem = 0;
-
-//     }
-// }
-
-void spi_capture_init()
-{
-    // configure pins as input
-    gpio_init(PIN_DIO);
-    gpio_set_dir(PIN_DIO, GPIO_IN);
-    gpio_init(PIN_CLK);
-    gpio_set_dir(PIN_CLK, GPIO_IN);
-    gpio_init(PIN_CS);
-    gpio_set_dir(PIN_CS, GPIO_IN);
-    gpio_pull_up(PIN_DIO);
-    gpio_pull_up(PIN_CLK);
-    gpio_pull_up(PIN_CS);
-
-}
-
-
-void lambda_capture_callback()
-{
-    while(1)
-    {   
-        // spi_frame_t frame;
-        spi_capture_blocking(&frame);
-
-        if ( (frame.length == 17 && frame.data[0] == 0xC0) ) 
+        spi_capture_snapshot(snapshot);
+        if (snapshot->sequence != after_sequence)
         {
-            uint8_t output_byte = frame.data[1 + output_on_bit_pos.byte];
-            screendata.output_on =
-                (output_byte >> output_on_bit_pos.bit) & 0x01u;
-
-            get_value((frame.data+1), &(screendata.rows[VOLTAGE]), VOLTAGE);
-            get_value((frame.data+1), &(screendata.rows[CURRENT]), CURRENT);
-            get_value((frame.data+1), &(screendata.rows[POWER]), POWER);
-
+            return true;
         }
-
-        // update_screendata_callback();
-    }
-}
-
-void wait_for_spi_capture()
-{
-    wait_for_spi_capture_sem = 1;
-    while(wait_for_spi_capture_sem)
-    {
-        tight_loop_contents();
-    }
+        sleep_ms(1);
+    } while (time_us_32() - started < timeout_us);
+    return false;
 }
 

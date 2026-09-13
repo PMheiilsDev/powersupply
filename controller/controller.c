@@ -2,6 +2,7 @@
 #include "controller.h"
 #include "pico/stdlib.h"
 #include <math.h>
+#include <stdlib.h>
 
 void controller_init()
 {
@@ -61,112 +62,147 @@ void rotate_digit_voltage(bool up, uint16_t n)
 
 void change_digit_voltage()
 {
-    // screendata.editing_digit = (screendata.editing_digit-1+DIGIT_LEN) % DIGIT_LEN;
     gpio_put(PIN_VOLTAGE_BUTTON, 1);
     sleep_us(BUTTON_PRESS_DELAY_US);
     gpio_put(PIN_VOLTAGE_BUTTON, 0);
     sleep_us(BUTTON_RELEASE_DELAY_US);
 }
 
+static bool wait_voltage(uint32_t after, bool editing, digit_t expected_digit,
+                         int expected_factor, display_snapshot_t *snapshot)
+{
+    uint32_t started = time_us_32();
+    do
+    {
+        spi_capture_snapshot(snapshot);
+        if (snapshot->screen.output_on)
+            return false;
+        if (editing)
+        {
+            if ((int32_t)(snapshot->editing_sequence[VOLTAGE] - after) > 0 &&
+                (expected_digit == UNKNOWN_DIGIT ||
+                 snapshot->editing_digit[VOLTAGE] == expected_digit))
+                return true;
+        }
+        else if (snapshot->row_valid[VOLTAGE] &&
+                 (int32_t)(snapshot->row_sequence[VOLTAGE] - after) > 0 &&
+                 (expected_factor < 0 || snapshot->screen.rows[VOLTAGE].fac == expected_factor))
+            return true;
+        sleep_ms(1);
+    } while (time_us_32() - started < DISPLAY_STALE_US);
+    return false;
+}
+
+static bool select_voltage_digit(digit_t digit, display_snapshot_t *snapshot)
+{
+    if (!wait_voltage(snapshot->sequence, true, UNKNOWN_DIGIT, -1, snapshot))
+        return false;
+    for (unsigned moves = 0; moves < DIGIT_LEN; moves++)
+    {
+        digit_t current = snapshot->editing_digit[VOLTAGE];
+        if (current == digit)
+            return true;
+        change_digit_voltage();
+        spi_capture_snapshot(snapshot);
+        digit_t expected = (digit_t)((current + DIGIT_LEN - 1) % DIGIT_LEN);
+        if (!wait_voltage(snapshot->sequence, true, expected, -1, snapshot))
+            return false;
+    }
+    return false;
+}
+
 void move_digit_voltage(digit_t digit)
 {
-    // rotate once to get the editing digit to blink
-    // only if the last 0xFF(empty) has been more than about 2000ms 
-    // maybe not necessary when last read was under 2000ms ago as then its still blinking
-    // and if longer then 2000ms then it resets to 100mV (DIGIT_2) 
+    display_snapshot_t snapshot;
+    spi_capture_snapshot(&snapshot);
+    if (digit >= DIGIT_LEN ||
+        !wait_voltage(snapshot.sequence, false, UNKNOWN_DIGIT, -1, &snapshot))
+        return;
     rotate_digit_voltage_once_hard(false);
-    wait_for_spi_capture();
-
-    uint8_t start = (uint8_t)screendata.editing_digit;
-    uint8_t goal = (uint8_t)digit;
-    // moves = (start - goal + N) % N
-    uint8_t moves = (start - goal + DIGIT_LEN) % DIGIT_LEN;
-    for (int i = 0; i < moves; i++)
-    {
-        change_digit_voltage();
-    }
+    spi_capture_snapshot(&snapshot);
+    (void)select_voltage_digit(digit, &snapshot);
 }
 
 bool controller_set_voltage(double voltage)
 {
-    int8_t exponent = screendata.rows[VOLTAGE].exp;
-    double scale = pow(10.0, (double)exponent);
-    double target_fac_value = voltage / scale;
-
-    if (!isfinite(voltage) || target_fac_value < 0.0 || target_fac_value > 9999.0)
-    {
+    if (!isfinite(voltage) || voltage < 0)
         return false;
-    }
-
-    uint16_t target = (uint16_t)lround(target_fac_value);
-    uint16_t current = screendata.rows[VOLTAGE].fac;
-
-    bool up = target > current;
-
-    // The first pulse makes the active digit visible. Then select DIGIT_3.
+    display_snapshot_t snapshot;
+    spi_capture_snapshot(&snapshot);
+    if (!wait_voltage(snapshot.sequence, false, UNKNOWN_DIGIT, -1, &snapshot))
+        return false;
+    int8_t exponent = snapshot.screen.rows[VOLTAGE].exp;
+    double factor = voltage / pow(10.0, exponent);
+    if (factor > 9999.0)
+        return false;
+    uint16_t target = (uint16_t)lround(factor);
+    if (target == snapshot.screen.rows[VOLTAGE].fac)
+        return true;
     rotate_digit_voltage_once_hard(false);
-    wait_for_spi_capture();
-    while (screendata.editing_digit != DIGIT_3)
+
+    spi_capture_snapshot(&snapshot);
+    const unsigned divisors[DIGIT_LEN] = {1000, 100, 10, 1};
+    uint32_t started = time_us_32();
+    for (digit_t digit = DIGIT_0; digit < DIGIT_LEN; digit++)
     {
-        change_digit_voltage();
-        wait_for_spi_capture();
-    }
-
-    // Work from the least significant digit so each carry is intentional.
-    for (int digit = DIGIT_3; digit >= DIGIT_0; digit--)
-    {
-        uint16_t divisor = (uint16_t)pow(10.0, (double)(DIGIT_3 - digit));
-        current = screendata.rows[VOLTAGE].fac;
-        uint8_t current_digit = (uint8_t)((current / divisor) % 10);
-        uint8_t target_digit = (uint8_t)((target / divisor) % 10);
-        uint8_t steps;
-
-        if (up)
+        if (!select_voltage_digit(digit, &snapshot) ||
+            !wait_voltage(snapshot.sequence, false, UNKNOWN_DIGIT, -1, &snapshot))
+            return false;
+        unsigned divisor = divisors[digit];
+        int difference = (int)((target / divisor) % 10) -
+                         (int)((snapshot.screen.rows[VOLTAGE].fac / divisor) % 10);
+        for (int steps = 0; steps < abs(difference); steps++)
         {
-            steps = (uint8_t)((target_digit - current_digit + 10) % 10);
-        }
-        else
-        {
-            steps = (uint8_t)((current_digit - target_digit + 10) % 10);
-        }
-
-        if (steps != 0)
-        {
-            rotate_digit_voltage(up, steps);
-            sleep_ms(20);
-        }
-
-        if (digit != DIGIT_0)
-        {
-            change_digit_voltage();
-            wait_for_spi_capture();
+            if (snapshot.screen.rows[VOLTAGE].exp != exponent ||
+                time_us_32() - started > 30000000u)
+                return false;
+            int expected = snapshot.screen.rows[VOLTAGE].fac +
+                           (difference > 0 ? (int)divisor : -(int)divisor);
+            rotate_digit_voltage_once_hard(difference > 0);
+            spi_capture_snapshot(&snapshot);
+            if (!wait_voltage(snapshot.sequence, false, UNKNOWN_DIGIT, expected, &snapshot))
+                return false;
         }
     }
 
-    return true;
+    return snapshot.screen.rows[VOLTAGE].exp == exponent &&
+           snapshot.screen.rows[VOLTAGE].fac == target;
 }
 
-void controller_set_output(bool enabled)
+bool controller_set_output(bool enabled)
 {
-    if (enabled == screendata.output_on)
-    {
-        return;
-    }
-
+    display_snapshot_t snapshot;
+    spi_capture_snapshot(&snapshot);
+    if (!snapshot.sequence || time_us_32() - snapshot.updated_us >= DISPLAY_STALE_US)
+        return false;
+    if (enabled == snapshot.screen.output_on)
+        return true;
     gpio_put(PIN_OUTPUT_BUTTON, 1);
     sleep_us(BUTTON_PRESS_DELAY_US);
     gpio_put(PIN_OUTPUT_BUTTON, 0);
     sleep_us(BUTTON_RELEASE_DELAY_US);
+    spi_capture_snapshot(&snapshot);
+    uint32_t started = time_us_32();
+    do
+    {
+        if (!spi_capture_wait(snapshot.sequence, 100000u, &snapshot))
+            continue;
+        if (snapshot.screen.output_on == enabled)
+            return true;
+    } while (time_us_32() - started < DISPLAY_STALE_US);
+    return false;
 }
 
-void controller_toggle_output(void)
+bool controller_toggle_output(void)
 {
-    controller_set_output(!screendata.output_on);
+    return controller_set_output(!controller_get_output());
 }
 
 bool controller_get_output(void)
 {
-    return screendata.output_on;
+    display_snapshot_t snapshot;
+    spi_capture_snapshot(&snapshot);
+    return snapshot.screen.output_on;
 }
 
 

@@ -1,7 +1,5 @@
 
 #include "decoder.h"
-#include "spi_capture.h"
-#include <math.h>
 #include <stdbool.h>
 
 bit_position_t output_on_bit_pos = NUM_TO_BIT_POS_T(36);
@@ -165,20 +163,6 @@ const uint8_t segment_mapping[] =
     [9] = SEG_A | SEG_F | SEG_G | SEG_B | SEG_C | SEG_D,
 };
 
-screendata_t screendata = 
-{
-    .rows = 
-    {
-        [VOLTAGE] = { .fac = 0, .exp = 0 },
-        [CURRENT] = { .fac = 0, .exp = 0 },
-        [POWER]   = { .fac = 0, .exp = 0 },
-    },
-    .output_on = false,
-    .editing_row = UNKNOWN_ROW,
-    .editing_digit = UNKNOWN_DIGIT,
-};
-
-
 uint8_t get_digit_of_segment(uint8_t *data, row_t row, digit_t digit )
 {
     // get all the bits of this segment to a byte
@@ -203,44 +187,64 @@ uint8_t get_digit_of_segment(uint8_t *data, row_t row, digit_t digit )
     return 0xFF; // Return an invalid digit if no match is found
 }
 
-extern volatile int wait_for_spi_capture_sem;
-
 bool get_value(uint8_t*data, value_t* value_ptr, row_t row)
 {
-    uint16_t voltage_fac = 0;
-    int8_t decimal_point_pos = 0;
-
-
-    for (uint8_t digit = 0; digit < DIGIT_LEN; digit++) 
+    uint16_t factor = 0;
+    int8_t exponent = 0;
+    bool decimal_seen = false;
+    if (row >= ROW_LEN || !data || !value_ptr)
+    {
+        return false;
+    }
+    for (uint8_t digit = 0; digit < DIGIT_LEN; digit++)
     {
         uint8_t digit_value = get_digit_of_segment(data, row, (digit_t)digit);
-        
         if (digit_value == 0xFF)
         {
-            screendata.editing_row = row;
-            screendata.editing_digit = (digit_t)digit;
-            wait_for_spi_capture_sem = 0;
             return false;
         }
-
-        voltage_fac += digit_value * pow((uint16_t)10, (uint16_t)((DIGIT_LEN-1)-digit) );
-
-        // get decimal seperator 
+        factor = factor * 10u + digit_value;
         bit_position_t bit_pos = data_mapping[row][digit][SEGMENT_DP];
-        uint8_t bit_value = (data[bit_pos.byte] >> bit_pos.bit) & 0x01;
-
-        if ( bit_value )
+        if ((data[bit_pos.byte] >> bit_pos.bit) & 0x01u)
         {
-            decimal_point_pos = digit;
+            if (decimal_seen)
+            {
+                return false;
+            }
+            decimal_seen = true;
+            exponent = (int8_t)digit + 1 - DIGIT_LEN;
         }
-
     }
-
-    screendata.rows[row].fac = voltage_fac;
-
-    screendata.rows[row].exp = decimal_point_pos+(1-DIGIT_LEN);
-    
+    value_ptr->fac = factor;
+    value_ptr->exp = exponent;
     return true;
+}
+
+bool decoder_editing_digit(uint8_t *data, row_t row, digit_t *editing_digit)
+{
+    digit_t blank = UNKNOWN_DIGIT;
+    for (digit_t digit = DIGIT_0; digit < DIGIT_LEN; digit++)
+    {
+        if (get_digit_of_segment(data, row, digit) != 0xFF)
+        {
+            continue;
+        }
+        if (blank != UNKNOWN_DIGIT)
+        {
+            return false;
+        }
+        for (segment_t segment = SEGMENT_A; segment < SEGMENT_DP; segment++)
+        {
+            bit_position_t position = data_mapping[row][digit][segment];
+            if (data[position.byte] & (1u << position.bit))
+            {
+                return false;
+            }
+        }
+        blank = digit;
+    }
+    *editing_digit = blank;
+    return blank != UNKNOWN_DIGIT;
 }
 
 
