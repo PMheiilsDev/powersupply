@@ -1,0 +1,30 @@
+description:
+after being idle for some time >10s
+if i rotate the voltage knob once or press the voltage knob i enter the edit mode 
+when pressing the voltage knob in editing mode the digit moves left once and moves back to the right most digit if its all the way left already
+during the edit mode the editing digit blinks with about 1Hz 
+the target voltage is displayed then if i rotate once right after that the editing digit changes by one if i rotate twice it changes by two  
+if i wait for about 2s the digit stops blinking if i rotate then once the digit starts blinking again if i rotate twice instead the digit starts blinking and changes by one only
+after about 9s the editing mode ends fully and the editing digit resets to the middle right digit when i reenter the editing mode
+
+in editing mode and if the output is off the target voltage/current can be read via spi if the ouput is on and the device is not in editing mode the voltage/current is the actual voltage/current
+editing mode timings of voltage/current might be independent or might not be test that too
+
+i dont know about the current timings havent tested it before but the timings might be different 
+
+
+add a function that is for a full re calibration
+it retests all configuration even the pin mapping of the rotators or buttons might be different (try all combinations and check if a change happens)
+also tests the timings like the delay needed between two rotations and two button pressed and the ~2s and the ~9s delays for the changes of the editing mode 
+get the time by doing binary search around the expected delay 
+eg for the 2s delay 
+    enter editing mode by waiting then rotating/pressing once 
+    try if rotating once after the binary search delay changes the digit or if it does not 
+    the time for it to no longer change is the actual time 
+
+the results of the calibration should be saved in flash and queryable/setable via scpi for manual changes
+
+
+the 2s or the 9s might be multiples of the button scan time of about 10ms or the 50ms of display update those can be counted with the spi handler 
+every about 10ms the supply scans for button presses via the spi lines and every like 50ms it updates the display data
+

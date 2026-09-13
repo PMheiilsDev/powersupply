@@ -6,6 +6,7 @@
 #include "decoder_types.h"
 #include "decoder.h"
 #include "spi_capture.h"
+#include "calibration.h"
 
 #define PIN_VOLTAGE_A 19 
 #define PIN_VOLTAGE_B 20 
@@ -52,6 +53,15 @@ void change_digit_voltage();
 void move_digit_voltage(digit_t digit);
 
 bool controller_set_voltage(double voltage);
+bool controller_set_current(double current);
+bool controller_read_target(row_t row, value_t *value);
+bool controller_read_actual(row_t row, value_t *value);
+bool controller_prepare_edit(row_t row, digit_t digit);
+void controller_rotate(row_t row, bool up);
+void controller_press(row_t row);
+void controller_raw_rotate(unsigned pin_a, unsigned pin_b, bool up,
+                           uint32_t phase_us, uint32_t gap_us);
+void controller_raw_press(unsigned pin, uint32_t press_us, uint32_t release_us);
 
 bool controller_set_output(bool enabled);
 bool controller_toggle_output(void);

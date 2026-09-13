@@ -29,6 +29,11 @@ typedef struct
     uint32_t refresh_min_us;
     uint32_t refresh_max_us;
     uint32_t blink_period_us[ROW_LEN];
+    uint32_t scan_frames;
+    uint32_t scan_min_us;
+    uint32_t scan_max_us;
+    uint32_t display_min_us;
+    uint32_t display_max_us;
 } display_timing_t;
 
 typedef struct
@@ -39,6 +44,7 @@ typedef struct
     uint32_t row_sequence[ROW_LEN];
     digit_t editing_digit[ROW_LEN];
     uint32_t editing_sequence[ROW_LEN];
+    uint32_t editing_updated_us[ROW_LEN];
     uint32_t sequence;
     uint32_t updated_us;
     display_timing_t timing;
@@ -53,6 +59,10 @@ typedef struct
     uint32_t previous_start_us;
     uint32_t clock_edge_us;
     uint32_t blank_started_us[ROW_LEN];
+    uint32_t scan_started_us;
+    uint32_t display_started_us;
+    bool scan_seen;
+    bool display_seen;
     uint8_t byte;
     uint8_t bits;
     bool initialized;
@@ -65,10 +75,12 @@ typedef struct
 } capture_engine_t;
 
 void capture_engine_init(capture_engine_t *engine);
+void capture_engine_reset_timing(capture_engine_t *engine);
 bool capture_engine_sample(capture_engine_t *engine, uint32_t levels, uint32_t now_us);
 void spi_capture_init(void);
 void lambda_capture_callback(void);
 void spi_capture_snapshot(display_snapshot_t *snapshot);
+void spi_capture_reset_timing(void);
 bool spi_capture_wait(uint32_t after_sequence, uint32_t timeout_us,
                       display_snapshot_t *snapshot);
 

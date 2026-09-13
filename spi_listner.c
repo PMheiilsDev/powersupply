@@ -5,6 +5,7 @@
 #include "pico/multicore.h"
 #include "controller.h"
 #include "scpi_control.h"
+#include "calibration_job.h"
 
 
 static uint32_t state = 0x12345678;
@@ -38,6 +39,7 @@ int main()
     // gpio_set_dir(25, GPIO_OUT);
 
     stdio_init_all();
+    calibration_init();
     scpi_control_init();
 
     spi_capture_init();
@@ -48,6 +50,7 @@ int main()
     while (1)
     {
         scpi_control_process();
+        calibration_job_process();
         sleep_ms(1);
     }
 

@@ -28,6 +28,15 @@ void capture_engine_init(capture_engine_t *engine)
     }
 }
 
+void capture_engine_reset_timing(capture_engine_t *engine)
+{
+    memset(&engine->display.timing, 0, sizeof(engine->display.timing));
+    engine->start_seen = false;
+    engine->scan_seen = false;
+    engine->display_seen = false;
+    memset(engine->blank_seen, 0, sizeof(engine->blank_seen));
+}
+
 static void decode_frame(capture_engine_t *engine, uint32_t now_us)
 {
     display_snapshot_t *display = &engine->display;
@@ -52,6 +61,7 @@ static void decode_frame(capture_engine_t *engine, uint32_t now_us)
         {
             display->editing_digit[row] = digit;
             display->editing_sequence[row] = display->sequence;
+            display->editing_updated_us[row] = now_us;
             display->screen.editing_row = row;
             display->screen.editing_digit = digit;
             if (!engine->blank[row])
@@ -110,15 +120,32 @@ bool capture_engine_sample(capture_engine_t *engine, uint32_t levels, uint32_t n
                      &engine->display.timing.cs_min_us,
                      &engine->display.timing.cs_max_us);
         engine->display.timing.frames++;
-        if (!(levels & CS_MASK) || engine->overflow || engine->bits ||
-            engine->frame.length != 17 || engine->frame.data[0] != 0xC0)
+        if (!(levels & CS_MASK) || engine->overflow || engine->bits || !engine->frame.length)
         {
             engine->display.timing.rejected++;
         }
-        else
+        else if (engine->frame.data[0] == 0x42 && engine->frame.length <= 5)
         {
+            engine->display.timing.scan_frames++;
+            if (engine->scan_seen)
+                record_range(engine->started_us - engine->scan_started_us,
+                             &engine->display.timing.scan_min_us,
+                             &engine->display.timing.scan_max_us);
+            engine->scan_seen = true;
+            engine->scan_started_us = engine->started_us;
+        }
+        else if (engine->frame.length == 17 && engine->frame.data[0] == 0xC0)
+        {
+            if (engine->display_seen)
+                record_range(engine->started_us - engine->display_started_us,
+                             &engine->display.timing.display_min_us,
+                             &engine->display.timing.display_max_us);
+            engine->display_seen = true;
+            engine->display_started_us = engine->started_us;
             decode_frame(engine, now_us);
         }
+        else
+            engine->display.timing.rejected++;
         return true;
     }
     if (changed & CLK_MASK)

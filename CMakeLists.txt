@@ -70,6 +70,8 @@ target_link_libraries(spi_listner PUBLIC
         hardware_i2c
         hardware_spi
         pico_multicore
+        hardware_flash
+        pico_flash
 )
 
 get_target_property(OUT spi_listner LINK_LIBRARIES)
@@ -82,6 +84,9 @@ target_sources(spi_listner PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/spi_capture/spi_capture_logic.c
         ${CMAKE_CURRENT_SOURCE_DIR}/decoder/decoder.c
         ${CMAKE_CURRENT_SOURCE_DIR}/controller/controller.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/controller/calibration.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/controller/calibration_job.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/controller/calibration_flash.c
         ${CMAKE_CURRENT_SOURCE_DIR}/scpi_control.c
         )
 
@@ -101,6 +106,7 @@ target_include_directories(spi_listner PUBLIC
 
 
 pico_enable_stdio_uart(spi_listner 0)
+target_compile_definitions(spi_listner PRIVATE PICO_FLASH_ASSERT_ON_UNSAFE=0)
 pico_enable_stdio_usb(spi_listner 1)
 
 

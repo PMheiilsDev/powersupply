@@ -6,50 +6,40 @@
 
 void controller_init()
 {
-    gpio_init(PIN_VOLTAGE_A);
-    gpio_set_dir(PIN_VOLTAGE_A, true);
-    gpio_put(PIN_VOLTAGE_A, 0);
-    gpio_init(PIN_VOLTAGE_B);
-    gpio_set_dir(PIN_VOLTAGE_B, true);
-    gpio_put(PIN_VOLTAGE_B, 0);
-    gpio_init(PIN_VOLTAGE_BUTTON);
-    gpio_set_dir(PIN_VOLTAGE_BUTTON, true);
-    gpio_put(PIN_VOLTAGE_BUTTON, 0);
-    gpio_init(PIN_OUTPUT_BUTTON);
-    gpio_set_dir(PIN_OUTPUT_BUTTON, true);
-    gpio_put(PIN_OUTPUT_BUTTON, 0);
-    
-    // maybe wait for first spi read ? 
+    for (unsigned index = 0; index < CALIBRATION_PIN_COUNT; index++)
+    {
+        unsigned pin = calibration_candidate_pins[index];
+        gpio_init(pin);
+        gpio_put(pin, 0);
+        gpio_set_dir(pin, true);
+    }
 }
 
-void rotate_digit_voltage_once_hard(bool up)
+void controller_raw_rotate(unsigned pin_a, unsigned pin_b, bool up,
+                           uint32_t phase_us, uint32_t gap_us)
 {
-    if (up)
-    {
-        gpio_put(PIN_VOLTAGE_A, 1);
-        sleep_us(ROT_DELAY_US);
-        gpio_put(PIN_VOLTAGE_B, 1);
-        sleep_us(ROT_DELAY_US);
-        
-        gpio_put(PIN_VOLTAGE_A, 0);
-        sleep_us(ROT_DELAY_US);
-        gpio_put(PIN_VOLTAGE_B, 0);
-        sleep_us(ROT_DELAY_US);
-    }
-    else
-    {
-        gpio_put(PIN_VOLTAGE_B, 1);
-        sleep_us(ROT_DELAY_US);
-        gpio_put(PIN_VOLTAGE_A, 1);
-        sleep_us(ROT_DELAY_US);
-        
-        gpio_put(PIN_VOLTAGE_B, 0);
-        sleep_us(ROT_DELAY_US);
-        gpio_put(PIN_VOLTAGE_A, 0);
-        sleep_us(ROT_DELAY_US);
-    }
+    unsigned first = up ? pin_a : pin_b;
+    unsigned second = up ? pin_b : pin_a;
+    gpio_put(first, 1);
+    sleep_us(phase_us);
+    gpio_put(second, 1);
+    sleep_us(phase_us);
+    gpio_put(first, 0);
+    sleep_us(phase_us);
+    gpio_put(second, 0);
+    sleep_us(phase_us);
+    sleep_us(gap_us);
 }
 
+void controller_rotate(row_t row, bool up)
+{
+    controller_raw_rotate(calibration_get(row == VOLTAGE ? CAL_V_A : CAL_I_A),
+                          calibration_get(row == VOLTAGE ? CAL_V_B : CAL_I_B), up,
+                          calibration_get(row == VOLTAGE ? CAL_V_PHASE_US : CAL_I_PHASE_US),
+                          calibration_get(row == VOLTAGE ? CAL_V_GAP_US : CAL_I_GAP_US));
+}
+
+void rotate_digit_voltage_once_hard(bool up) { controller_rotate(VOLTAGE, up); }
 
 void rotate_digit_voltage(bool up, uint16_t n)
 {
@@ -62,13 +52,25 @@ void rotate_digit_voltage(bool up, uint16_t n)
 
 void change_digit_voltage()
 {
-    gpio_put(PIN_VOLTAGE_BUTTON, 1);
-    sleep_us(BUTTON_PRESS_DELAY_US);
-    gpio_put(PIN_VOLTAGE_BUTTON, 0);
-    sleep_us(BUTTON_RELEASE_DELAY_US);
+    controller_press(VOLTAGE);
 }
 
-static bool wait_voltage(uint32_t after, bool editing, digit_t expected_digit,
+void controller_raw_press(unsigned pin, uint32_t press_us, uint32_t release_us)
+{
+    gpio_put(pin, 1);
+    sleep_us(press_us);
+    gpio_put(pin, 0);
+    sleep_us(release_us);
+}
+
+void controller_press(row_t row)
+{
+    controller_raw_press(calibration_get(row == VOLTAGE ? CAL_V_BUTTON : CAL_I_BUTTON),
+                         calibration_get(row == VOLTAGE ? CAL_V_PRESS_US : CAL_I_PRESS_US),
+                         calibration_get(row == VOLTAGE ? CAL_V_RELEASE_US : CAL_I_RELEASE_US));
+}
+
+static bool wait_row(row_t row, uint32_t after, bool editing, digit_t expected_digit,
                          int expected_factor, display_snapshot_t *snapshot)
 {
     uint32_t started = time_us_32();
@@ -79,94 +81,154 @@ static bool wait_voltage(uint32_t after, bool editing, digit_t expected_digit,
             return false;
         if (editing)
         {
-            if ((int32_t)(snapshot->editing_sequence[VOLTAGE] - after) > 0 &&
+              if ((int32_t)(snapshot->editing_sequence[row] - after) > 0 &&
                 (expected_digit == UNKNOWN_DIGIT ||
-                 snapshot->editing_digit[VOLTAGE] == expected_digit))
+                  snapshot->editing_digit[row] == expected_digit))
                 return true;
         }
-        else if (snapshot->row_valid[VOLTAGE] &&
-                 (int32_t)(snapshot->row_sequence[VOLTAGE] - after) > 0 &&
-                 (expected_factor < 0 || snapshot->screen.rows[VOLTAGE].fac == expected_factor))
+        else if (snapshot->row_valid[row] &&
+             (int32_t)(snapshot->row_sequence[row] - after) > 0 &&
+             (expected_factor < 0 || snapshot->screen.rows[row].fac == expected_factor))
             return true;
         sleep_ms(1);
-    } while (time_us_32() - started < DISPLAY_STALE_US);
+    } while (time_us_32() - started < calibration_get(CAL_FEEDBACK_US));
     return false;
 }
 
-static bool select_voltage_digit(digit_t digit, display_snapshot_t *snapshot)
+static bool select_digit(row_t row, digit_t digit, display_snapshot_t *snapshot)
 {
-    if (!wait_voltage(snapshot->sequence, true, UNKNOWN_DIGIT, -1, snapshot))
+    if (!wait_row(row, snapshot->sequence, true, UNKNOWN_DIGIT, -1, snapshot))
         return false;
     for (unsigned moves = 0; moves < DIGIT_LEN; moves++)
     {
-        digit_t current = snapshot->editing_digit[VOLTAGE];
+        digit_t current = snapshot->editing_digit[row];
         if (current == digit)
             return true;
-        change_digit_voltage();
+        controller_press(row);
         spi_capture_snapshot(snapshot);
         digit_t expected = (digit_t)((current + DIGIT_LEN - 1) % DIGIT_LEN);
-        if (!wait_voltage(snapshot->sequence, true, expected, -1, snapshot))
+        if (!wait_row(row, snapshot->sequence, true, expected, -1, snapshot))
             return false;
     }
     return false;
 }
 
-void move_digit_voltage(digit_t digit)
+bool controller_prepare_edit(row_t row, digit_t digit)
 {
+    if (row > CURRENT || digit >= DIGIT_LEN)
+        return false;
     display_snapshot_t snapshot;
     spi_capture_snapshot(&snapshot);
-    if (digit >= DIGIT_LEN ||
-        !wait_voltage(snapshot.sequence, false, UNKNOWN_DIGIT, -1, &snapshot))
-        return;
-    rotate_digit_voltage_once_hard(false);
+    if (!wait_row(row, snapshot.sequence, false, UNKNOWN_DIGIT, -1, &snapshot))
+        return false;
+    controller_press(row);
     spi_capture_snapshot(&snapshot);
-    (void)select_voltage_digit(digit, &snapshot);
+    return select_digit(row, digit, &snapshot);
 }
 
-bool controller_set_voltage(double voltage)
+void move_digit_voltage(digit_t digit) { (void)controller_prepare_edit(VOLTAGE, digit); }
+
+static bool set_value(row_t row, double requested)
 {
-    if (!isfinite(voltage) || voltage < 0)
+    if (!isfinite(requested) || requested < 0)
         return false;
     display_snapshot_t snapshot;
     spi_capture_snapshot(&snapshot);
-    if (!wait_voltage(snapshot.sequence, false, UNKNOWN_DIGIT, -1, &snapshot))
+    if (!wait_row(row, snapshot.sequence, false, UNKNOWN_DIGIT, -1, &snapshot))
         return false;
-    int8_t exponent = snapshot.screen.rows[VOLTAGE].exp;
-    double factor = voltage / pow(10.0, exponent);
+    controller_press(row);
+    spi_capture_snapshot(&snapshot);
+    if (!wait_row(row, snapshot.sequence, true, UNKNOWN_DIGIT, -1, &snapshot) ||
+        !wait_row(row, snapshot.sequence, false, UNKNOWN_DIGIT, -1, &snapshot))
+        return false;
+    int8_t exponent = snapshot.screen.rows[row].exp;
+    double factor = requested / pow(10.0, exponent);
     if (factor > 9999.0)
         return false;
     uint16_t target = (uint16_t)lround(factor);
-    if (target == snapshot.screen.rows[VOLTAGE].fac)
+    if (target == snapshot.screen.rows[row].fac)
         return true;
-    rotate_digit_voltage_once_hard(false);
-
-    spi_capture_snapshot(&snapshot);
     const unsigned divisors[DIGIT_LEN] = {1000, 100, 10, 1};
     uint32_t started = time_us_32();
     for (digit_t digit = DIGIT_0; digit < DIGIT_LEN; digit++)
     {
-        if (!select_voltage_digit(digit, &snapshot) ||
-            !wait_voltage(snapshot.sequence, false, UNKNOWN_DIGIT, -1, &snapshot))
+        if (!select_digit(row, digit, &snapshot) ||
+            !wait_row(row, snapshot.sequence, false, UNKNOWN_DIGIT, -1, &snapshot))
             return false;
         unsigned divisor = divisors[digit];
         int difference = (int)((target / divisor) % 10) -
-                         (int)((snapshot.screen.rows[VOLTAGE].fac / divisor) % 10);
+                         (int)((snapshot.screen.rows[row].fac / divisor) % 10);
         for (int steps = 0; steps < abs(difference); steps++)
         {
-            if (snapshot.screen.rows[VOLTAGE].exp != exponent ||
-                time_us_32() - started > 30000000u)
+            if (snapshot.screen.rows[row].exp != exponent ||
+                time_us_32() - started > 90000000u)
                 return false;
-            int expected = snapshot.screen.rows[VOLTAGE].fac +
+            int expected = snapshot.screen.rows[row].fac +
                            (difference > 0 ? (int)divisor : -(int)divisor);
-            rotate_digit_voltage_once_hard(difference > 0);
+            controller_rotate(row, difference > 0);
             spi_capture_snapshot(&snapshot);
-            if (!wait_voltage(snapshot.sequence, false, UNKNOWN_DIGIT, expected, &snapshot))
+            if (!wait_row(row, snapshot.sequence, false, UNKNOWN_DIGIT, expected, &snapshot))
                 return false;
         }
     }
 
-    return snapshot.screen.rows[VOLTAGE].exp == exponent &&
-           snapshot.screen.rows[VOLTAGE].fac == target;
+    return snapshot.screen.rows[row].exp == exponent &&
+           snapshot.screen.rows[row].fac == target;
+}
+
+bool controller_set_voltage(double voltage) { return set_value(VOLTAGE, voltage); }
+bool controller_set_current(double current) { return set_value(CURRENT, current); }
+
+bool controller_read_target(row_t row, value_t *value)
+{
+    if (!controller_prepare_edit(row, DIGIT_3))
+        return false;
+    display_snapshot_t snapshot;
+    spi_capture_snapshot(&snapshot);
+    if (!wait_row(row, snapshot.sequence, false, UNKNOWN_DIGIT, -1, &snapshot))
+        return false;
+    *value = snapshot.screen.rows[row];
+    return true;
+}
+
+bool controller_read_actual(row_t row, value_t *value)
+{
+    if (row > CURRENT)
+        return false;
+    display_snapshot_t snapshot;
+    spi_capture_snapshot(&snapshot);
+    uint32_t started = time_us_32();
+    uint32_t editing_sequence = snapshot.editing_sequence[row];
+    row_t other = row == VOLTAGE ? CURRENT : VOLTAGE;
+    uint32_t other_sequence = snapshot.editing_sequence[other];
+    uint32_t coupling = calibration_get(row == VOLTAGE ? CAL_I_TO_V_COUPLING : CAL_V_TO_I_COUPLING);
+    bool shared_exit = coupling == 0 || coupling == 2 || coupling == 4;
+    uint32_t quiet_us = calibration_get(row == VOLTAGE ? CAL_V_BLINK_US : CAL_I_BLINK_US) +
+                        calibration_get(CAL_REFRESH_US) * 2;
+    do
+    {
+        if (!snapshot.screen.output_on || !snapshot.sequence ||
+            time_us_32() - snapshot.updated_us >= DISPLAY_STALE_US ||
+            snapshot.editing_sequence[row] != editing_sequence ||
+            (shared_exit && snapshot.editing_sequence[other] != other_sequence))
+            return false;
+        sleep_ms(1);
+        spi_capture_snapshot(&snapshot);
+    } while (time_us_32() - started < quiet_us);
+    uint32_t now = time_us_32();
+    uint32_t exit_us = calibration_get(row == VOLTAGE ? CAL_V_EXIT_US : CAL_I_EXIT_US);
+    uint32_t since_edit = now - snapshot.editing_updated_us[row];
+    uint32_t margin = calibration_get(CAL_REFRESH_US);
+    if (!snapshot.screen.output_on || !snapshot.row_valid[row] ||
+        now - snapshot.row_updated_us[row] >= DISPLAY_STALE_US ||
+        since_edit <= exit_us + margin ||
+        now - snapshot.row_updated_us[row] >= since_edit - exit_us - margin)
+        return false;
+    uint32_t other_exit = calibration_get(other == VOLTAGE ? CAL_V_EXIT_US : CAL_I_EXIT_US);
+    if (shared_exit && now - snapshot.editing_updated_us[other] <= other_exit + margin)
+        return false;
+    *value = snapshot.screen.rows[row];
+    return true;
 }
 
 bool controller_set_output(bool enabled)
@@ -177,10 +239,9 @@ bool controller_set_output(bool enabled)
         return false;
     if (enabled == snapshot.screen.output_on)
         return true;
-    gpio_put(PIN_OUTPUT_BUTTON, 1);
-    sleep_us(BUTTON_PRESS_DELAY_US);
-    gpio_put(PIN_OUTPUT_BUTTON, 0);
-    sleep_us(BUTTON_RELEASE_DELAY_US);
+    controller_raw_press(calibration_get(CAL_OUTPUT_BUTTON),
+                         calibration_get(CAL_OUTPUT_PRESS_US),
+                         calibration_get(CAL_OUTPUT_RELEASE_US));
     spi_capture_snapshot(&snapshot);
     uint32_t started = time_us_32();
     do

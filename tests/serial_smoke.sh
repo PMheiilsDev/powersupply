@@ -24,7 +24,7 @@ query()
 {
     local response
     printf '%s\n' "$1" >&3
-    if ! IFS= read -r -t 45 -u 3 response; then
+    if ! IFS= read -r -t 120 -u 3 response; then
         printf 'Timed out waiting for %s; check wiring and SYST:ERR?\n' "$1" >&2
         exit 1
     fi

@@ -1,10 +1,12 @@
 #include "pico/stdlib.h"
 #include "pico/critical_section.h"
+#include "pico/flash.h"
 #include "spi_capture.h"
 
 static critical_section_t display_lock;
 static display_snapshot_t published;
 static capture_engine_t engine;
+static volatile bool reset_timing;
 
 void spi_capture_init(void)
 {
@@ -27,14 +29,27 @@ void spi_capture_snapshot(display_snapshot_t *snapshot)
     critical_section_exit(&display_lock);
 }
 
+void spi_capture_reset_timing(void)
+{
+    critical_section_enter_blocking(&display_lock);
+    reset_timing = true;
+    critical_section_exit(&display_lock);
+}
+
 void lambda_capture_callback(void)
 {
+    (void)flash_safe_execute_core_init();
     while (true)
     {
         uint32_t levels = gpio_get_all();
         if (capture_engine_sample(&engine, levels, time_us_32()))
         {
             critical_section_enter_blocking(&display_lock);
+            if (reset_timing)
+            {
+                capture_engine_reset_timing(&engine);
+                reset_timing = false;
+            }
             published = engine.display;
             critical_section_exit(&display_lock);
         }

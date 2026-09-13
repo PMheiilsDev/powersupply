@@ -44,6 +44,9 @@ artifact is `build/spi_listner.uf2`. Copy it to the Pico's BOOTSEL drive.
 | --- | --- |
 | `*IDN?` | Firmware identification |
 | `VOLT 6.50` or `SOUR:VOLT 6.50` | Set voltage with output off; wait for verified display feedback |
+| `CURR 0.750` or `SOUR:CURR 0.750` | Set current limit with output off |
+| `SOUR:VOLT?`, `SOUR:CURR?` | Enter editing with output off and read target/limit |
+| `MEAS:VOLT?`, `MEAS:CURR?` | Read actual values only with output on and edit-mode guards satisfied |
 | `VOLT?` or `DISP:VOLT?` | Last fresh complete displayed voltage, in V |
 | `CURR?` or `DISP:CURR?` | Last fresh complete displayed current, in A |
 | `DISP:POW?` | Last fresh complete displayed power, in W |
@@ -53,24 +56,29 @@ artifact is `build/spi_listner.uf2`. Copy it to the Pico's BOOTSEL drive.
 | `SYST:ERR?`, `SYST:ERR:COUN?`, `*CLS` | Read/count/clear queued errors |
 | `SYST:DISP:TIM?` | Timing measurements since boot |
 | `SYST:DISP:STAT?` | Valid frame count, frame age, V/I/P reading ages |
+| `SYST:DISP:CAD?` | Key-scan count, scan min/max period, full-display min/max period |
+| `CAL:LIST?`, `CAL:CONF?`, `CAL:PAR? "V_IDLE_US"` | Calibration names, values, or one value |
 
-`VOLT?` and `CURR?` report what the supply displays. Depending on the supply's
-front-panel mode this may be the target/limit or the actual reading. The known
-frame mapping does not identify that mode, so these are deliberately not
-advertised as `MEASure` commands or separately cached setpoint queries.
-Current-limit setting is not implemented. Blank/invalid digits preserve the
+`VOLT?` and `CURR?` report what the supply displays. Use `SOUR:VOLT?` and
+`SOUR:CURR?` for targets/limits with output off; these queries enter edit mode
+using the corresponding button. Use `MEAS:VOLT?` and `MEAS:CURR?` for actual
+readings with output on. Measurement queries conservatively reject recently
+edited rows and observe a full blink period before returning. See
+[calibration.md](calibration.md) for mode assumptions and calibration limits.
+Blank/invalid digits preserve the
 last complete reading; readings older than two seconds fail instead of
 returning a fabricated zero. Failed queries produce no numeric response;
 use `SYST:ERR?` after a query timeout to inspect the error.
 
 Voltage-setting requires output off, rounds to the displayed resolution, and
 accepts only values fitting the four-digit display at its current decimal
-position. No model-specific maximum voltage is assumed. The first encoder
-pulse wakes editing; subsequent pulses and digit selections are verified from
+position. No model-specific maximum voltage is assumed. A button press enters
+editing without intentionally changing the target; pulses and selections are verified from
 new display frames. A missed pulse, unexpected decimal position, or missing
 feedback fails the command rather than continuing blindly. Individual feedback
-waits are limited to two seconds; a long voltage adjustment can take tens of
-seconds. Use a host read timeout of at least 45 seconds. On failure the voltage
+waits use the calibrated feedback timeout (2.5 seconds by default); a long adjustment
+can take tens of seconds, with a 90-second adjustment budget. Use a host read
+timeout of at least 120 seconds. On failure the voltage
 may be partially changed; there is no automatic rollback or output enabling.
 An error does not cancel later commands already queued by the host.
 
@@ -104,14 +112,16 @@ blink is the most recently observed interval between blank-phase onsets.
 Zero means not yet observed (or below microsecond resolution). `frames` counts
 all completed/timed-out CS transactions; `rejected` includes other display
 commands, wrong headers/lengths, partial bytes, buffer overflow, and CS low for
-100 ms. Only complete 17-byte `C0` display writes update readings. Refresh
+100 ms. Recognized one-to-five-byte `42` key-scan transactions are counted
+separately rather than rejected. Only complete 17-byte `C0` display writes update readings. Refresh
 intervals cover all CS transactions, not just full display writes.
 
 `SYST:DISP:STAT?` returns accepted frame count and four ages in microseconds;
 an age of `-1` means no corresponding valid data has arrived. A rising frame
 count and low ages confirm reception. These are software-polled measurements,
 not an oscilloscope: sub-microsecond edges or polling gaps can be missed.
-Clock phase/bit order and button/encoder pulse widths are not auto-calibrated.
+Clock phase/bit order are not auto-calibrated. Pin roles and panel-control
+pulse widths can be recalibrated explicitly as described in [calibration.md](calibration.md).
 Validate the measured timing against a logic analyzer before relying on it.
 
 ## Test Without Hardware
@@ -129,9 +139,11 @@ ctest --test-dir /tmp/powersupply-tests --output-on-failure
 Tests exercise the real decoder, capture engine, controller, and SCPI parser.
 GPIO replay checks clock/CS/refresh timing, blink periods, bad frames,
 overflow, timeout, and timer wraparound. The simulated supply refreshes every
-10 ms, blinks every 500 ms, and covers upward/downward transitions, repeated
+50 ms, blinks at 1 Hz, and covers upward/downward transitions, repeated
 targets, digit carry boundaries, invalid targets, missed pulses, lost capture,
-output interlocks, and SCPI errors. This verifies logic, not the electrical
+output interlocks, and SCPI errors. Full calibration is also exercised against
+permuted wiring, independent/shared timers, abort, lost feedback, and failed
+flash saves. This verifies logic, not the electrical
 interface or the supply's actual encoder response.
 
 ## Test on the Supply
