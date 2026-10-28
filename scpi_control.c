@@ -8,6 +8,8 @@
 #include "controller.h"
 #include "decoder.h"
 #include "calibration_job.h"
+#include "diagnostics.h"
+#include "spi_trace.h"
 
 #define SCPI_INPUT_BUFFER_LENGTH 256
 #define SCPI_ERROR_QUEUE_SIZE 8
@@ -73,7 +75,7 @@ static scpi_result_t scpi_voltage(scpi_t *context)
         return SCPI_RES_ERR;
     }
 
-    return !calibration_job_busy() && controller_set_voltage(voltage) ? SCPI_RES_OK : SCPI_RES_ERR;
+    return !calibration_job_busy() && !diagnostics_armed() && controller_set_voltage(voltage) ? SCPI_RES_OK : SCPI_RES_ERR;
 }
 
 static scpi_result_t scpi_current(scpi_t *context)
@@ -81,13 +83,13 @@ static scpi_result_t scpi_current(scpi_t *context)
     double current;
     if (!SCPI_ParamDouble(context, &current, TRUE))
         return SCPI_RES_ERR;
-    return !calibration_job_busy() && controller_set_current(current) ? SCPI_RES_OK : SCPI_RES_ERR;
+    return !calibration_job_busy() && !diagnostics_armed() && controller_set_current(current) ? SCPI_RES_OK : SCPI_RES_ERR;
 }
 
 static scpi_result_t requested_value(scpi_t *context, row_t row, bool actual)
 {
     value_t value;
-    if (calibration_job_busy() ||
+    if (calibration_job_busy() || diagnostics_armed() ||
         !(actual ? controller_read_actual(row, &value) : controller_read_target(row, &value)))
         return SCPI_RES_ERR;
     SCPI_ResultDouble(context, value.fac * pow(10.0, value.exp));
@@ -103,7 +105,7 @@ static bool configuration_allowed(void)
 {
     display_snapshot_t snapshot;
     spi_capture_snapshot(&snapshot);
-    return !calibration_job_busy() && snapshot.sequence && !snapshot.screen.output_on &&
+    return !calibration_job_busy() && !diagnostics_armed() && snapshot.sequence && !snapshot.screen.output_on &&
            time_us_32() - snapshot.updated_us < DISPLAY_STALE_US;
 }
 
@@ -179,7 +181,7 @@ static scpi_result_t calibration_full(scpi_t *context)
     scpi_bool_t confirmed;
     if (!SCPI_ParamBool(context, &confirmed, TRUE))
         return SCPI_RES_ERR;
-    return calibration_job_start(confirmed != FALSE) ? SCPI_RES_OK : SCPI_RES_ERR;
+    return !diagnostics_armed() && calibration_job_start(confirmed != FALSE) ? SCPI_RES_OK : SCPI_RES_ERR;
 }
 
 static scpi_result_t calibration_abort(scpi_t *context)
@@ -207,7 +209,123 @@ static scpi_result_t calibration_status(scpi_t *context)
 
 static scpi_result_t operation_complete(scpi_t *context)
 {
-    return calibration_job_busy() ? SCPI_RES_ERR : SCPI_CoreOpcQ(context);
+    return calibration_job_busy() || diagnostics_busy() ? SCPI_RES_ERR : SCPI_CoreOpcQ(context);
+}
+
+static scpi_result_t diagnostic_version(scpi_t *context)
+{
+    SCPI_ResultUInt32(context, 1);
+    return SCPI_RES_OK;
+}
+
+static scpi_result_t diagnostic_arm(scpi_t *context)
+{
+    uint32_t mode;
+    if (!SCPI_ParamUInt32(context, &mode, TRUE))
+        return SCPI_RES_ERR;
+    return diagnostics_arm(mode) ? SCPI_RES_OK : SCPI_RES_ERR;
+}
+
+static scpi_result_t diagnostic_run(scpi_t *context)
+{
+    (void)context;
+    return diagnostics_run() ? SCPI_RES_OK : SCPI_RES_ERR;
+}
+
+static scpi_result_t diagnostic_enqueue(scpi_t *context)
+{
+    uint32_t kind, row, up;
+    diagnostic_action_t action = {0};
+    if (!SCPI_ParamUInt32(context, &kind, TRUE) || !SCPI_ParamUInt32(context, &row, TRUE) ||
+        !SCPI_ParamUInt32(context, &up, TRUE) || !SCPI_ParamUInt32(context, &action.delay_us, TRUE) ||
+        !SCPI_ParamUInt32(context, &action.pulse_us, TRUE) || !SCPI_ParamUInt32(context, &action.gap_us, TRUE) ||
+        !SCPI_ParamUInt32(context, &action.id, TRUE) || kind > 2 || row > CURRENT || up > 1)
+        return SCPI_RES_ERR;
+    action.kind = (uint8_t)kind;
+    action.row = (uint8_t)row;
+    action.up = up != 0;
+    if (!diagnostics_enqueue(&action))
+        return SCPI_RES_ERR;
+    diagnostic_status_t status;
+    diagnostics_status(&status);
+    SCPI_ResultUInt32(context, status.queued);
+    return SCPI_RES_OK;
+}
+
+static scpi_result_t diagnostic_state(scpi_t *context)
+{
+    diagnostic_status_t status;
+    display_snapshot_t snapshot;
+    diagnostics_status(&status);
+    spi_capture_snapshot(&snapshot);
+    SCPI_ResultUInt32(context, 1);
+    SCPI_ResultUInt32(context, time_us_32());
+    SCPI_ResultUInt32(context, status.arm_mode);
+    SCPI_ResultUInt32(context, status.queued);
+    SCPI_ResultBool(context, status.running);
+    SCPI_ResultUInt32(context, status.completed_id);
+    SCPI_ResultUInt32(context, status.ended_us);
+    SCPI_ResultUInt32(context, status.error);
+    SCPI_ResultUInt32(context, snapshot.sequence);
+    SCPI_ResultUInt32(context, snapshot.updated_us);
+    SCPI_ResultBool(context, snapshot.screen.output_on);
+    for (row_t row = VOLTAGE; row < ROW_LEN; row++)
+    {
+        SCPI_ResultUInt32(context, snapshot.screen.rows[row].fac);
+        SCPI_ResultInt32(context, snapshot.screen.rows[row].exp);
+        SCPI_ResultBool(context, snapshot.row_valid[row]);
+        SCPI_ResultUInt32(context, snapshot.row_sequence[row]);
+        SCPI_ResultUInt32(context, snapshot.row_updated_us[row]);
+        SCPI_ResultUInt32(context, snapshot.editing_digit[row]);
+        SCPI_ResultUInt32(context, snapshot.editing_sequence[row]);
+        SCPI_ResultUInt32(context, snapshot.editing_updated_us[row]);
+    }
+    return SCPI_RES_OK;
+}
+
+static scpi_result_t diagnostic_trace_clear(scpi_t *context)
+{
+    (void)context;
+    if (diagnostics_busy() || calibration_job_busy())
+        return SCPI_RES_ERR;
+    spi_capture_trace_clear();
+    return SCPI_RES_OK;
+}
+
+static scpi_result_t diagnostic_trace(scpi_t *context)
+{
+    uint32_t after;
+    if (!SCPI_ParamUInt32(context, &after, TRUE))
+        return SCPI_RES_ERR;
+    diagnostics_contact();
+    static spi_trace_batch_t batch;
+    spi_capture_trace_read(after, &batch);
+    SCPI_ResultUInt32(context, batch.head);
+    SCPI_ResultUInt32(context, batch.oldest);
+    SCPI_ResultUInt32(context, batch.lost);
+    SCPI_ResultUInt32(context, batch.count);
+    for (uint32_t index = 0; index < batch.count; index++)
+    {
+        const spi_trace_event_t *event = &batch.events[index];
+        char hex[SPI_TRACE_DATA_SIZE * 2 + 1];
+        unsigned length = event->length < SPI_TRACE_DATA_SIZE ? event->length : SPI_TRACE_DATA_SIZE;
+        for (unsigned byte = 0; byte < length; byte++)
+            snprintf(hex + byte * 2, 3, "%02X", event->data[byte]);
+        hex[length * 2] = 0;
+        char record[320];
+        snprintf(record, sizeof(record),
+                 "%lu|%lu|%lu|%u|%u|%lu|%u|%s|%lu|%u|%u|%u|%u|%u|%d|%u|%u|%d|%u|%u|%d|%u",
+                 (unsigned long)event->sequence, (unsigned long)event->started_us,
+                 (unsigned long)event->ended_us, event->kind, event->flags,
+                 (unsigned long)event->action_id, event->length, hex,
+                 (unsigned long)event->screen_sequence, event->output_on,
+                 event->valid_mask, event->fresh_mask, event->blink_mask,
+                 event->rows[VOLTAGE].fac, event->rows[VOLTAGE].exp, event->editing_digit[VOLTAGE],
+                 event->rows[CURRENT].fac, event->rows[CURRENT].exp, event->editing_digit[CURRENT],
+                 event->rows[POWER].fac, event->rows[POWER].exp, event->editing_digit[POWER]);
+        SCPI_ResultText(context, record);
+    }
+    return SCPI_RES_OK;
 }
 
 static scpi_result_t scpi_voltage_query(scpi_t *context)
@@ -278,13 +396,13 @@ static scpi_result_t scpi_output(scpi_t *context)
         return SCPI_RES_ERR;
     }
 
-    return !calibration_job_busy() && controller_set_output(enabled != FALSE) ? SCPI_RES_OK : SCPI_RES_ERR;
+    return !calibration_job_busy() && !diagnostics_armed() && controller_set_output(enabled != FALSE) ? SCPI_RES_OK : SCPI_RES_ERR;
 }
 
 static scpi_result_t scpi_output_toggle(scpi_t *context)
 {
     (void)context;
-    return !calibration_job_busy() && controller_toggle_output() ? SCPI_RES_OK : SCPI_RES_ERR;
+    return !calibration_job_busy() && !diagnostics_armed() && controller_toggle_output() ? SCPI_RES_OK : SCPI_RES_ERR;
 }
 
 static scpi_result_t scpi_output_query(scpi_t *context)
@@ -298,6 +416,13 @@ static scpi_result_t scpi_output_query(scpi_t *context)
 }
 
 static const scpi_command_t scpi_commands[] = {
+    { .pattern = "DIAGnostic:VERSion?", .callback = diagnostic_version },
+    { .pattern = "DIAGnostic:ARM", .callback = diagnostic_arm },
+    { .pattern = "DIAGnostic:RUN", .callback = diagnostic_run },
+    { .pattern = "DIAGnostic:ACTion?", .callback = diagnostic_enqueue },
+    { .pattern = "DIAGnostic:STATe?", .callback = diagnostic_state },
+    { .pattern = "DIAGnostic:TRACe?", .callback = diagnostic_trace },
+    { .pattern = "DIAGnostic:TRACe:CLEar", .callback = diagnostic_trace_clear },
     { .pattern = "*IDN?", .callback = SCPI_CoreIdnQ },
     { .pattern = "*OPC?", .callback = operation_complete },
     { .pattern = "CALibration:PARameter?", .callback = calibration_parameter_query },
@@ -352,7 +477,7 @@ void scpi_control_init(void)
               scpi_commands,
               &scpi_interface,
               scpi_units_def,
-              "Pico", "Powersupply", NULL, "2",
+              "Pico", "Powersupply", NULL, "3",
               scpi_input_buffer, sizeof(scpi_input_buffer),
               scpi_error_queue, SCPI_ERROR_QUEUE_SIZE);
 }

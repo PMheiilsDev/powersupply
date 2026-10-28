@@ -6,6 +6,7 @@
 #include "controller.h"
 #include "scpi_control.h"
 #include "calibration_job.h"
+#include "diagnostics.h"
 
 
 static uint32_t state = 0x12345678;
@@ -50,6 +51,7 @@ int main()
     while (1)
     {
         scpi_control_process();
+        diagnostics_process();
         calibration_job_process();
         sleep_ms(1);
     }

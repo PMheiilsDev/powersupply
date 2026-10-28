@@ -4,6 +4,8 @@ This procedure tests the actual Pico, interface wiring, and power supply.
 Start with no load connected and complete each stage before continuing.
 For protocol assumptions and calibration details, see [calibration.md](calibration.md).
 For the development-container setup, see [setup.md](setup.md).
+For automatic timestamped experiments and logs to return for analysis, see
+[hardware_probe.md](hardware_probe.md).
 
 ## 1. Prepare the Bench
 

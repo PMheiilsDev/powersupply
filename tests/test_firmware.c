@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include "decoder.h"
 #include "spi_capture.h"
+#include "spi_trace.h"
+#include "diagnostics.h"
 #include "controller.h"
 #include "scpi_control.h"
 #include "calibration.h"
@@ -124,6 +126,14 @@ void spi_capture_snapshot(display_snapshot_t *snapshot)
 void spi_capture_reset_timing(void)
 {
     memset(&simulated.timing, 0, sizeof(simulated.timing));
+}
+
+void spi_capture_trace_read(uint32_t after, spi_trace_batch_t *batch) { spi_trace_read(after, batch); }
+void spi_capture_trace_clear(void) { spi_trace_clear(); }
+void spi_capture_trace_marker(uint8_t kind, uint32_t action_id, uint32_t started_us,
+                              const uint8_t *data, uint16_t length)
+{
+    spi_trace_record(kind, 0, started_us, simulated_us, action_id, data, length, &simulated);
 }
 
 uint32_t time_us_32(void) { return simulated_us; }
@@ -461,6 +471,41 @@ static void command(const char *input, char *response, size_t capacity)
     fclose(capture);
 }
 
+static void test_diagnostic_scpi(void)
+{
+    char response[8192];
+    reset_supply(950);
+    scpi_control_init();
+    command("DIAG:ARM 0\nDIAG:VERS?\n", response, sizeof(response));
+    assert(strcmp(response, "1\r\n") == 0);
+    spi_trace_clear();
+    uint8_t bytes[17] = {0xC0};
+    spi_trace_record(SPI_TRACE_FRAME, SPI_TRACE_DISPLAY, 100, 200, 0, bytes, sizeof(bytes), &simulated);
+    command("DIAG:TRAC? 0\n", response, sizeof(response));
+    assert(strncmp(response, "1,1,0,1,\"1|100|200|1|4|0|17|C000", 32) == 0);
+    command("DIAG:STAT?\n", response, sizeof(response));
+    unsigned commas = 0;
+    for (char *cursor = response; *cursor; cursor++)
+        commas += *cursor == ',';
+    assert(commas == 34);
+    command("DIAG:ARM 1\nDIAG:ACT? 1,0,0,10000,61000,11000,7\n", response, sizeof(response));
+    assert(strcmp(response, "1\r\n") == 0);
+    command("DIAG:RUN\n", response, sizeof(response));
+    sleep_ms(10);
+    diagnostics_process();
+    diagnostic_status_t status;
+    diagnostics_status(&status);
+    assert(status.completed_id == 7 && !status.running);
+    unsigned writes = gpio_writes;
+    command("VOLT 1\nSYST:ERR?\n", response, sizeof(response));
+    assert(strstr(response, "-200,"));
+    assert(gpio_writes == writes);
+    command("CAL:FULL 1\nSYST:ERR?\n", response, sizeof(response));
+    assert(strstr(response, "-200,"));
+    command("DIAG:ARM 0\nSYST:ERR?\n", response, sizeof(response));
+    assert(strstr(response, "0,\"No error\""));
+}
+
 static void test_scpi(void)
 {
     char response[512];
@@ -640,6 +685,90 @@ static void test_capture(void)
     assert(engine.display.timing.rejected == 0);
 }
 
+static void test_trace(void)
+{
+    display_snapshot_t snapshot = {0};
+    spi_trace_batch_t batch;
+    uint8_t bytes[40] = {0xC0};
+    snapshot.sequence = 4;
+    snapshot.row_valid[VOLTAGE] = true;
+    snapshot.row_sequence[VOLTAGE] = 4;
+    snapshot.screen.rows[VOLTAGE] = (value_t){950, -2};
+    snapshot.editing_sequence[CURRENT] = 4;
+    snapshot.editing_digit[CURRENT] = DIGIT_2;
+    spi_trace_clear();
+    spi_trace_read(0, &batch);
+    assert(batch.count == 0 && batch.head == 0);
+    spi_trace_record(SPI_TRACE_FRAME, SPI_TRACE_DISPLAY, UINT32_MAX - 5, 10, 0,
+                     bytes, sizeof(bytes), &snapshot);
+    spi_trace_read(0, &batch);
+    assert(batch.count == 1 && batch.lost == 0);
+    assert(batch.events[0].flags & SPI_TRACE_TRUNCATED);
+    assert(batch.events[0].fresh_mask == 1 && batch.events[0].blink_mask == 2);
+    assert(batch.events[0].rows[VOLTAGE].fac == 950);
+    assert(batch.events[0].data[0] == 0xC0);
+    for (unsigned index = 0; index < SPI_TRACE_CAPACITY + 10; index++)
+        spi_trace_record(SPI_TRACE_MARK, 0, index, index, index, NULL, 0, &snapshot);
+    spi_trace_read(0, &batch);
+    assert(batch.oldest == 12 && batch.lost == 11);
+    assert(batch.count == SPI_TRACE_BATCH_SIZE);
+    assert(batch.events[0].sequence == batch.oldest);
+    spi_trace_read(batch.head, &batch);
+    assert(batch.count == 0);
+}
+
+static void test_diagnostics(void)
+{
+    reset_supply(950);
+    assert(diagnostics_arm(1));
+    diagnostic_action_t first = {1, 100000, 61000, 11000, 1, VOLTAGE, false};
+    diagnostic_action_t second = {2, 2000000, 1250, 11000, 2, VOLTAGE, true};
+    spi_trace_clear();
+    assert(diagnostics_enqueue(&first));
+    assert(diagnostics_enqueue(&second));
+    assert(diagnostics_run());
+    unsigned writes = gpio_writes;
+    diagnostics_process();
+    assert(gpio_writes == writes);
+    sleep_ms(100);
+    diagnostics_process();
+    diagnostic_status_t status;
+    diagnostics_status(&status);
+    assert(status.completed_id == 1 && status.queued == 1);
+    sleep_ms(1999);
+    diagnostics_process();
+    diagnostics_status(&status);
+    assert(status.completed_id == 1);
+    sleep_ms(1);
+    diagnostics_process();
+    diagnostics_status(&status);
+    assert(status.completed_id == 2 && status.queued == 0);
+    spi_trace_batch_t batch;
+    spi_trace_read(0, &batch);
+    assert(batch.count == 10);
+    assert(batch.events[0].kind == SPI_TRACE_ACTION_START);
+    assert(batch.events[3].kind == SPI_TRACE_ACTION_END);
+    assert(batch.events[4].started_us - batch.events[3].ended_us == 2000000);
+    assert(diagnostics_arm(0));
+    assert(!diagnostics_enqueue(&first));
+    simulated_output = true;
+    sleep_ms(100);
+    assert(!diagnostics_arm(1));
+    assert(diagnostics_arm(2));
+    simulated_output = false;
+    sleep_ms(100);
+    diagnostics_process();
+    diagnostics_status(&status);
+    assert(status.error == 2 && !diagnostics_armed());
+    reset_supply(950);
+    assert(diagnostics_arm(1));
+    assert(diagnostics_enqueue(&first));
+    sleep_ms(3100);
+    diagnostics_process();
+    diagnostics_status(&status);
+    assert(status.error == 3 && !status.queued && !diagnostics_armed());
+}
+
 int main(void)
 {
     uint8_t data[16] = {0};
@@ -675,11 +804,14 @@ int main(void)
     data[position.byte] |= 1u << position.bit;
     assert(!get_value(data, &value, VOLTAGE));
     test_capture();
+    test_trace();
+    test_diagnostics();
     test_configuration();
     test_search();
     test_controller();
     test_current_and_modes();
     test_full_calibration();
+    test_diagnostic_scpi();
     test_scpi();
     puts("Decoder, bus replay, voltage/current control, modes, full calibration, flash records, and SCPI tests passed");
     return 0;

@@ -1,6 +1,7 @@
 add_executable(firmware_tests test_firmware.c ../decoder/decoder.c
 			   ../spi_capture/spi_capture_logic.c ../controller/controller.c
-			   ../scpi_control.c ../controller/calibration.c ../controller/calibration_job.c)
+			   ../scpi_control.c ../controller/calibration.c ../controller/calibration_job.c
+			   ../spi_capture/spi_trace.c ../controller/diagnostics.c)
 target_include_directories(firmware_tests PRIVATE mocks .. ../decoder ../spi_capture ../controller)
 target_compile_options(firmware_tests PRIVATE -Wall -Wextra -Werror -UNDEBUG)
 add_library(scpi_parser STATIC)

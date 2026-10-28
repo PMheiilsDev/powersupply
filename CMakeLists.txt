@@ -82,8 +82,10 @@ target_sources(spi_listner PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/spi_listner.c
         ${CMAKE_CURRENT_SOURCE_DIR}/spi_capture/spi_capture.c
         ${CMAKE_CURRENT_SOURCE_DIR}/spi_capture/spi_capture_logic.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/spi_capture/spi_trace.c
         ${CMAKE_CURRENT_SOURCE_DIR}/decoder/decoder.c
         ${CMAKE_CURRENT_SOURCE_DIR}/controller/controller.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/controller/diagnostics.c
         ${CMAKE_CURRENT_SOURCE_DIR}/controller/calibration.c
         ${CMAKE_CURRENT_SOURCE_DIR}/controller/calibration_job.c
         ${CMAKE_CURRENT_SOURCE_DIR}/controller/calibration_flash.c
