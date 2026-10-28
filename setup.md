@@ -148,6 +148,9 @@ interface or the supply's actual encoder response.
 
 ## Test on the Supply
 
+For the complete staged procedure and expected results, see
+[hardware_testing.md](hardware_testing.md).
+
 Attach the USB device to the container as described above, flash the firmware,
 and identify its serial device. The smoke test is read-only by default:
 
